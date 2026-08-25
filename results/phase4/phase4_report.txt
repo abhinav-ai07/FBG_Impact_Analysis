@@ -1,0 +1,22 @@
+PHASE 4 - IMPACT DETECTION REPORT
+==================================================
+
+Total datasets processed = 7
+Total FBG analyses = 21
+Total impacts = 12
+Total no-impact cases = 9
+
+BREAKDOWN BY FBG
+------------------------------
+
+FBG1:
+  Impacts: 3
+  No Impacts: 4
+
+FBG2:
+  Impacts: 7
+  No Impacts: 0
+
+FBG3:
+  Impacts: 2
+  No Impacts: 5
