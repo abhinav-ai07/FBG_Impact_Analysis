@@ -1,0 +1,461 @@
+================================================================================
+FBG IMPACT ANALYSIS - PHASE 3 REVIEW AND VALIDATION REPORT
+Branch: phase3-preprocessing
+Date: 2026-08-25
+================================================================================
+
+1. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+This report provides an independent, rigorous review and validation of the
+`phase3-preprocessing` branch for the FBG_Impact_Analysis repository.
+The objective of Phase 3 is to ingest raw FBG wavelength/strain time-series data,
+clean and baseline-correct the signals, compute wavelength shifts, and apply noise
+reduction/filtering techniques to produce signals suitable for Phase 4 impact
+detection.
+
+Core algorithmic modules implemented in `src/` (loading, cleaning, baseline
+subtraction, wavelength shift, Butterworth filtering, Savitzky-Golay filtering,
+median filtering, and moving average filtering) are mathematically sound and
+execute effectively. When supplied with the raw dataset files, the processing
+pipeline achieves substantial noise reduction (30% to 67% reduction in baseline
+standard deviation) while preserving genuine impact profiles (>96% amplitude
+retention on sustained impacts) with zero phase distortion via zero-phase forward-
+backward filtering (`filtfilt`).
+
+However, the branch in its current state CANNOT be approved for merge due to
+one CRITICAL operational defect, one HIGH-severity usability issue, and a MEDIUM-
+severity packaging omission:
+  1. CRITICAL: `main.py` hardcodes the raw data path to `data/raw` (which does
+     not exist in the repository) instead of `raw_data`. Consequently, executing
+     `python main.py` out-of-the-box finds 0 datasets and performs 0 operations.
+  2. HIGH: `src/visualization/plots.py` invokes blocking `plt.show()` calls
+     inside the main batch loop (48 blocking GUI windows across all channels/datasets),
+     freezing automated execution and failing to save any plot artifacts to disk.
+  3. MEDIUM: `requirements.txt` is completely empty (0 bytes), preventing
+     reproducible environment setup.
+
+
+2. REPOSITORY STRUCTURE REVIEWED
+--------------------------------------------------------------------------------
+The branch introduces 21 files (1,620 insertions) compared to `main`:
+
+FBG_Impact_Analysis/
+|-- .gitignore
+|-- README.md (unstaged deletion in working tree)
+|-- main.py
+|-- requirements.txt (empty, 0 bytes)
+|-- raw_data/
+|   |-- RVCE mechanical strain expert10.20260327121942.txt (1,088 rows)
+|   |-- RVCE mechanical strain expert11.20260327122058(1).txt (464 rows, duplicate)
+|   |-- RVCE mechanical strain expert11.20260327122058.txt (464 rows)
+|   |-- RVCE mechanical strain expert12.20260327122213.txt (624 rows)
+|   |-- RVCE mechanical strain expert13.20260327122313.txt (1,024 rows)
+|   |-- RVCE mechanical strain expert7.20260327121446.txt (560 rows)
+|   |-- RVCE mechanical strain expert8.20260327121511.txt (2,016 rows)
+|   `-- RVCE mechanical strain expert9.20260327121636.txt (5,552 rows)
+`-- src/
+    |-- config.py
+    |-- analysis/
+    |   |-- __init__.py
+    |   `-- noise_analysis.py
+    |-- filtering/
+    |   |-- __init__.py
+    |   |-- butterworth.py
+    |   |-- filter_comparison.py
+    |   |-- median.py
+    |   |-- moving_average.py
+    |   `-- savitzky_golay.py
+    |-- io/
+    |   |-- __init__.py
+    |   |-- data_loader.py
+    |   `-- save_processed_data.py
+    |-- preprocessing/
+    |   |-- __init__.py
+    |   |-- baseline.py
+    |   |-- cleaning.py
+    |   |-- preprocessing_pipeline.py
+    |   `-- wavelength.py
+    `-- visualization/
+        `-- plots.py
+
+
+3. PHASE 3 COMPONENTS FOUND
+--------------------------------------------------------------------------------
+The following modular components were identified in `src/`:
+
+1. `src/io/data_loader.py`:
+   - `load_fbg_data(file_path)`: Tab-separated table reader with column naming.
+2. `src/io/save_processed_data.py`:
+   - `save_filtered_signals(time, raw_signal, filtered_signals, experiment_name, channel)`:
+     Saves CSV per channel containing raw wavelength shift and 4 filtered variants.
+3. `src/preprocessing/cleaning.py`:
+   - `clean_signal(signal)`: Coerces numeric data, performs linear interpolation,
+     and applies `bfill()` / `ffill()`.
+4. `src/preprocessing/baseline.py`:
+   - `calculate_baseline(signal, baseline_samples)`: Calculates mean of initial N samples.
+   - `baseline_correct(signal, baseline_samples)`: Subtracts scalar baseline.
+5. `src/preprocessing/wavelength.py`:
+   - `calculate_wavelength_shift(signal, baseline)`: Computes Delta_lambda = lambda - lambda_0.
+6. `src/preprocessing/preprocessing_pipeline.py`:
+   - `preprocess_signal(signal, baseline_samples)`: Orchestrates cleaning, baseline,
+     and wavelength shift.
+7. `src/filtering/butterworth.py`:
+   - `butterworth_filter(signal, cutoff, sampling_frequency, order=4)`: Low-pass
+     Butterworth filter using `scipy.signal.filtfilt` (zero phase distortion).
+8. `src/filtering/median.py`:
+   - `median_filter(signal, kernel_size=5)`: Median filter using `scipy.signal.medfilt`.
+9. `src/filtering/moving_average.py`:
+   - `moving_average(signal, window=5)`: Centered moving average using pandas `.rolling()`.
+10. `src/filtering/savitzky_golay.py`:
+    - `savitzky_golay_filter(signal, window=11, polyorder=3)`: Polynomial smoothing
+      using `scipy.signal.savgol_filter`.
+11. `src/filtering/filter_comparison.py`:
+    - `apply_all_filters(signal, sampling_frequency)`: Applies all 4 filter variants.
+12. `src/analysis/noise_analysis.py`:
+    - Functions for noise STD, RMS, peak amplitude, peak timing, peak preservation,
+      and noise reduction percentage in baseline regions.
+13. `src/visualization/plots.py`:
+    - Matplotlib routines for raw signals, wavelength shift, and filter comparisons.
+14. `src/config.py`:
+    - Constants for sampling frequency, baseline sample count, and channel mappings.
+
+
+4. RAW DATA LOADING VALIDATION
+--------------------------------------------------------------------------------
+- File Format: Tab-delimited ASCII files with 8 columns, no header.
+- Column Mapping:
+    Col 0 -> time (seconds, 0.02s step = 50 Hz)
+    Col 1 -> channel_id (1)
+    Col 2 -> peak_count (1)
+    Col 3 -> scan_status (1)
+    Col 4 -> error_flag (0)
+    Col 5 -> FBG1 (wavelength in ~1546.16 nm band)
+    Col 6 -> FBG2 (wavelength in ~1524.74 nm band)
+    Col 7 -> FBG3 (wavelength in ~1529.03 nm band)
+- Validation Findings:
+  * Column mapping in `data_loader.py` correctly maps all columns.
+  * No column swapping detected.
+  * All 8 datasets contain 0 NaN / null values in their raw state.
+  * Raw data is loaded accurately into float64 representations.
+
+
+5. PREPROCESSING VALIDATION
+--------------------------------------------------------------------------------
+- Operations Implemented:
+  1. Data cleaning / coercion: `pd.to_numeric(..., errors='coerce')`
+  2. Linear interpolation for missing points: `.interpolate(method='linear')`
+  3. Edge filling: `.bfill().ffill()`
+  4. Baseline extraction: Mean of first `BASELINE_SAMPLES` (100 samples = 2.0s).
+  5. Static baseline subtraction / Wavelength shift: Delta_lambda = lambda - lambda_0
+- Operations NOT implemented:
+  * Polynomial detrending / high-pass baseline tracking (assumes static baseline).
+  * Dynamic resampling / anti-aliasing.
+  * Signal normalization (e.g. min-max or z-score) - intentionally omitted to
+    preserve physical wavelength units (nm/pm).
+- Verification Result:
+  * Preprocessing runs reliably on all datasets without numeric exceptions.
+  * Note: `preprocess_signal` redundantly computes `baseline_correct` and
+    `calculate_wavelength_shift` (which perform identical operations).
+
+
+6. NOISE REDUCTION VALIDATION
+--------------------------------------------------------------------------------
+- Techniques Employed:
+  * Low-pass Butterworth (cutoff = 5 Hz, effective order = 8 via forward-backward filtfilt)
+  * Savitzky-Golay (window = 11 samples / 0.22s, polynomial order = 3)
+  * Moving Average (window = 5 samples / 0.10s, centered)
+  * Median Filtering (kernel_size = 5 samples / 0.10s)
+- Consistency:
+  * Applied identically across FBG1, FBG2, and FBG3 channels.
+- Performance Across Baseline Regions:
+  * Butterworth: 47.6% to 67.2% reduction in baseline noise STD.
+  * Savitzky-Golay: 45.9% to 64.5% reduction in baseline noise STD.
+  * Moving Average: 48.6% to 64.7% reduction in baseline noise STD.
+  * Median: 29.9% to 54.4% reduction in baseline noise STD.
+- Verification Result:
+  * Noise reduction executes cleanly and reduces high-frequency baseline jitter
+    from ~4.5 pm STD to ~1.7 pm STD on FBG1, and ~1.4 pm STD to ~0.55 pm STD on FBG2.
+
+
+7. FILTERING VALIDATION
+--------------------------------------------------------------------------------
+1. Butterworth Filter:
+   - Parameters: cutoff = 5 Hz, order = 4, fs = 50 Hz (Nyquist = 25 Hz).
+   - Implementation: `scipy.signal.butter(4, 0.2, btype='low')` + `filtfilt(b, a, signal)`.
+   - Assessment: Zero-phase forward-backward filtering eliminates time delays.
+     No ringing or boundary artifacts observed on continuous records.
+2. Savitzky-Golay Filter:
+   - Parameters: window = 11 (0.22s), polyorder = 3.
+   - Implementation: `scipy.signal.savgol_filter`.
+   - Assessment: Maintains curvature of transient peaks while smoothing random noise.
+3. Moving Average:
+   - Parameters: window = 5, centered = True, bfill/ffill for edge boundaries.
+   - Assessment: Good basic smoothing, but expects `pd.Series` input.
+4. Median Filter:
+   - Parameters: kernel_size = 5.
+   - Implementation: `scipy.signal.medfilt`.
+   - Assessment: Rejects single-sample non-physical spike artifacts effectively.
+
+
+8. FBG1 VALIDATION
+--------------------------------------------------------------------------------
+- Nominal Center Wavelength: ~1546.16 nm
+- Baseline Noise STD: ~4.18 pm to ~4.68 pm
+- Baseline Stability: Stable across all 8 files.
+- Max Peak Deviation: ~12 pm to ~22 pm (predominantly ambient/vibrational noise).
+- Processing: PASS across all 8 datasets.
+
+
+9. FBG2 VALIDATION
+--------------------------------------------------------------------------------
+- Nominal Center Wavelength: ~1524.74 nm
+- Baseline Noise STD: ~1.22 pm to ~1.42 pm
+- Baseline Stability: Stable.
+- Impact Activity: Demonstrates clear mechanical strain impact events:
+  * `expert13`: Clear sustained impact pulse reaching -37.15 pm (SNR = 28.3).
+  * `expert8`: Dynamic strain deflection reaching ~44.5 pm.
+  * `expert9`: Dynamic strain deflection reaching ~15.6 pm.
+  * `expert12`: Transient deflection reaching ~8.4 pm.
+- Processing: PASS across all 8 datasets.
+
+
+10. FBG3 VALIDATION
+--------------------------------------------------------------------------------
+- Nominal Center Wavelength: ~1529.03 nm
+- Baseline Noise STD: ~1.65 pm to ~1.76 pm
+- Baseline Stability: Stable across all 8 files.
+- Max Peak Deviation: ~4.4 pm to ~7.3 pm.
+- Processing: PASS across all 8 datasets.
+
+
+11. SIGNAL PRESERVATION ANALYSIS
+--------------------------------------------------------------------------------
+- Impact Shape Preservation:
+  * On genuine multi-sample impact waveforms (e.g. `expert13` FBG2, duration ~0.3s):
+    - Raw peak: 37.15 pm
+    - Butterworth filtered peak: 36.25 pm (97.6% retention)
+    - Savitzky-Golay filtered peak: 36.27 pm (97.6% retention)
+    - Moving Average filtered peak: 36.02 pm (97.0% retention)
+    - Median filtered peak: 37.15 pm (100.0% retention)
+  * Peak timing error on genuine impacts is <= 0.02s (within 1 sample index).
+- Artifact & Outlier Suppression:
+  * Isolated 1-sample spikes (e.g. `expert8` sample 151, `expert9` sample 204,
+    `expert12` sample 148), which represent optical interrogator dropouts or
+    glitches rather than physical structural impacts, are appropriately attenuated
+    by Savitzky-Golay/Butterworth and fully suppressed by Median filtering.
+- Phase / Time Shifts:
+  * Because Butterworth uses `filtfilt` and moving average uses `center=True`,
+    zero time shift is introduced across the entire pipeline.
+- Artificial Peaks / Ringing:
+  * No spurious oscillatory ringing or artificial peaks were detected in baseline
+    or post-impact recovery zones.
+
+
+12. DATASET-BY-DATASET TEST RESULTS
+--------------------------------------------------------------------------------
+Total datasets in raw_data/: 8
+
+Dataset 1: RVCE mechanical strain expert10.20260327121942.txt
+- Rows: 1,088 | Duration: 21.74 s
+- FBG1 Baseline: 1546.16279 nm | Noise Red: 58.1% (Butterworth)
+- FBG2 Baseline: 1524.74895 nm | Noise Red: 51.5% (Butterworth)
+- FBG3 Baseline: 1529.02677 nm | Noise Red: 52.8% (Butterworth)
+- Status: PASS
+
+Dataset 2: RVCE mechanical strain expert11.20260327122058(1).txt
+- Rows: 464 | Duration: 9.26 s
+- FBG1 Baseline: 1546.16010 nm | Noise Red: 53.4% (Butterworth)
+- FBG2 Baseline: 1524.74100 nm | Noise Red: 50.8% (Butterworth)
+- FBG3 Baseline: 1529.02621 nm | Noise Red: 56.4% (Butterworth)
+- Status: PASS (Duplicate file)
+
+Dataset 3: RVCE mechanical strain expert11.20260327122058.txt
+- Rows: 464 | Duration: 9.26 s
+- FBG1 Baseline: 1546.16010 nm | Noise Red: 53.4% (Butterworth)
+- FBG2 Baseline: 1524.74100 nm | Noise Red: 50.8% (Butterworth)
+- FBG3 Baseline: 1529.02621 nm | Noise Red: 56.4% (Butterworth)
+- Status: PASS
+
+Dataset 4: RVCE mechanical strain expert12.20260327122213.txt
+- Rows: 624 | Duration: 12.46 s
+- FBG1 Baseline: 1546.16095 nm | Noise Red: 51.7% (Butterworth)
+- FBG2 Baseline: 1524.74090 nm | Noise Red: 51.8% (Butterworth)
+- FBG3 Baseline: 1529.02616 nm | Noise Red: 47.6% (Butterworth)
+- Status: PASS
+
+Dataset 5: RVCE mechanical strain expert13.20260327122313.txt
+- Rows: 1,024 | Duration: 20.46 s
+- FBG1 Baseline: 1546.16154 nm | Noise Red: 59.2% (Butterworth)
+- FBG2 Baseline: 1524.74291 nm | Noise Red: 49.5% (Butterworth)
+- FBG3 Baseline: 1529.02653 nm | Noise Red: 67.2% (Butterworth)
+- Status: PASS (High-SNR Impact preserved with >97% amplitude)
+
+Dataset 6: RVCE mechanical strain expert7.20260327121446.txt
+- Rows: 560 | Duration: 11.18 s
+- FBG1 Baseline: 1546.16189 nm | Noise Red: 59.8% (Butterworth)
+- FBG2 Baseline: 1524.74108 nm | Noise Red: 54.4% (Butterworth)
+- FBG3 Baseline: 1529.02582 nm | Noise Red: 51.6% (Butterworth)
+- Status: PASS
+
+Dataset 7: RVCE mechanical strain expert8.20260327121511.txt
+- Rows: 2,016 | Duration: 40.30 s
+- FBG1 Baseline: 1546.16147 nm | Noise Red: 54.8% (Butterworth)
+- FBG2 Baseline: 1524.73844 nm | Noise Red: 59.5% (Butterworth)
+- FBG3 Baseline: 1529.02607 nm | Noise Red: 51.8% (Butterworth)
+- Status: PASS
+
+Dataset 8: RVCE mechanical strain expert9.20260327121636.txt
+- Rows: 5,552 | Duration: 111.02 s
+- FBG1 Baseline: 1546.16003 nm | Noise Red: 63.5% (Butterworth)
+- FBG2 Baseline: 1524.77153 nm | Noise Red: 63.6% (Butterworth)
+- FBG3 Baseline: 1529.02634 nm | Noise Red: 52.7% (Butterworth)
+- Status: PASS
+
+
+13. RUNTIME / TEST RESULTS
+--------------------------------------------------------------------------------
+- Execution via `python main.py`:
+  * Result: 0 datasets found, 0 processed.
+  * Root Cause: Directory mismatch (`data/raw` vs `raw_data`).
+- Execution via Pipeline with Correct Path:
+  * Datasets Tested: 8 / 8
+  * Datasets Succeeded: 8 / 8
+  * Output Files Generated: 24 CSV files (3 channels x 8 datasets) in `data/processed/filtered/`
+  * Summary Evaluation Table: Generated in `results/tables/phase3_filter_evaluation.csv`
+  * Execution Time: ~1.8 seconds total for all 8 files.
+
+
+14. DEPENDENCY / REPRODUCIBILITY CHECK
+--------------------------------------------------------------------------------
+- `requirements.txt`: Empty (0 bytes).
+- Actual Required Dependencies:
+  * pandas (tested with 3.0.2)
+  * numpy (tested with 2.4.4)
+  * scipy (tested with 1.17.1)
+  * matplotlib (tested with 3.10.8)
+- Path Portability:
+  * Uses `pathlib.Path` across `src/io/` and `main.py`, ensuring cross-platform
+    compatibility (Windows, Linux, macOS) for path separators.
+  * However, directory name mismatches (`data/raw` vs `raw_data`) prevent
+    out-of-the-box execution.
+
+
+15. UNNECESSARY / UNEXPECTED FILES
+--------------------------------------------------------------------------------
+1. Duplicate Dataset:
+   `raw_data/RVCE mechanical strain expert11.20260327122058(1).txt` is an exact
+   duplicate (MD5: bea77e3e698c31d22d4b48de41bb4383) of
+   `raw_data/RVCE mechanical strain expert11.20260327122058.txt`.
+2. Out-of-Scope Configuration in Phase 3:
+   `src/config.py` (lines 38-172) contains extensive Phase 4 / Phase 4.5 detector
+   and ensemble parameters (e.g. `PEAK_PROMINENCE_MULTIPLIER`, `PEAK_WEIGHT`,
+   `REFINE_NOISE_STD`) that are completely unused in Phase 3.
+3. Unstaged Deleted File:
+   `README.md` is present in git commit history but marked as deleted in the
+   unstaged working tree.
+
+
+16. PROBLEMS FOUND
+--------------------------------------------------------------------------------
+Problem 1:
+- File: main.py
+- Function/section: `main()` lines 239-241
+- Problem: Incorrect raw data directory path `Path("data/raw")`. The repository
+  stores datasets in `raw_data/`. Running `main.py` finds 0 datasets and fails silently.
+- Severity: CRITICAL
+- Evidence: Running `python main.py` prints `Found 0 dataset(s)` and terminates.
+
+Problem 2:
+- File: main.py & src/visualization/plots.py
+- Function/section: `process_one_experiment()` lines 100, 223 & `plot_wavelength_shift`, `plot_filter_comparison`
+- Problem: Interactive `plt.show()` is called inside the processing loop (2 calls per channel = 6 per experiment = 48 blocking windows across 8 datasets). Blocks batch pipeline execution and does not save figures to disk.
+- Severity: HIGH
+- Evidence: `src/visualization/plots.py` lines 34, 64, 102 call `plt.show()`.
+
+Problem 3:
+- File: requirements.txt
+- Function/section: Root dependency file
+- Problem: File is empty (0 bytes). Does not specify `pandas`, `numpy`, `scipy`, `matplotlib`.
+- Severity: MEDIUM
+- Evidence: `requirements.txt` file size is 0 bytes.
+
+Problem 4:
+- File: src/filtering/moving_average.py
+- Function/section: `moving_average()` lines 4-17
+- Problem: Calls `signal.rolling()`, which assumes a Pandas Series. Unlike the other 3 filter functions (which accept NumPy arrays or Series), passing a NumPy array raises `AttributeError: 'numpy.ndarray' object has no attribute 'rolling'`.
+- Severity: LOW
+- Evidence: `moving_average(np.array([1.0, 2.0]))` crashes.
+
+Problem 5:
+- File: src/config.py
+- Function/section: Lines 38-172 vs src/filtering/filter_comparison.py
+- Problem: Phase 4/4.5 detector settings are included in `src/config.py`, while Phase 3 filter parameters (cutoff=5, order=4, SG window=11, poly=3, median kernel=5, MA window=5) are hardcoded inside `filter_comparison.py` instead of `config.py`.
+- Severity: LOW
+- Evidence: `filter_comparison.py` lines 20, 26-28, 34-35, 41 hardcode parameters.
+
+Problem 6:
+- File: src/preprocessing/preprocessing_pipeline.py
+- Function/section: `preprocess_signal()` lines 30-43
+- Problem: Redundant calculation. `baseline_correct` computes `cleaned_signal - baseline` (stored in unused `baseline_corrected`), and then `calculate_wavelength_shift` recomputes `cleaned_signal - baseline`.
+- Severity: LOW
+- Evidence: `src/preprocessing/preprocessing_pipeline.py` lines 30-43.
+
+Problem 7:
+- File: raw_data/RVCE mechanical strain expert11.20260327122058(1).txt
+- Function/section: Dataset repository
+- Problem: Exact duplicate copy of `RVCE mechanical strain expert11.20260327122058.txt`.
+- Severity: LOW
+- Evidence: Identical MD5 hash `bea77e3e698c31d22d4b48de41bb4383`.
+
+
+17. PHASE 3 ACCEPTANCE CHECKLIST
+--------------------------------------------------------------------------------
+[X] Raw FBG data loads correctly              (PASS - when path is resolved)
+[X] Time/FBG columns are mapped correctly     (PASS - Time=0, FBG1=5, FBG2=6, FBG3=7)
+[X] FBG1 processed correctly                  (PASS)
+[X] FBG2 processed correctly                  (PASS)
+[X] FBG3 processed correctly                  (PASS)
+[X] Preprocessing actually runs               (PASS)
+[X] Noise reduction actually runs             (PASS)
+[X] Filtering actually runs                   (PASS - Butterworth, SG, MA, Median)
+[X] Filtering does not destroy signal         (PASS)
+[X] Impact-like signal structures preserved   (PASS - >96% amplitude retention)
+[X] No major artificial peaks introduced      (PASS)
+[X] No major time shift introduced            (PASS - Zero-phase filtfilt used)
+[X] Output files are generated correctly      (PASS - CSVs generated per channel)
+[X] Output can be consumed by later Phase 4   (PASS)
+[ ] All datasets processed out of the box     (FAIL - main.py path mismatch)
+[ ] No critical runtime errors                (FAIL - main.py path mismatch)
+[ ] Dependencies are sufficient               (FAIL - requirements.txt empty)
+[ ] Repository is reproducible                (FAIL - requirements.txt empty)
+[X] No critical unnecessary files             (PASS)
+
+
+18. FINAL RECOMMENDATION
+--------------------------------------------------------------------------------
+The underlying signal processing, filtering mathematics, and data cleaning routines
+are well-structured, numerically accurate, and perform as expected.
+
+To prepare the branch for merging into `main`, the following changes must be made:
+1. In `main.py`: Update `raw_directory = Path("raw_data")` (or accept configurable path).
+2. In `src/visualization/plots.py` & `main.py`: Replace blocking `plt.show()` with
+   `plt.savefig(...)` into a configured `results/plots/` directory, with an optional
+   flag for interactive display.
+3. In `requirements.txt`: Add required dependencies:
+   pandas>=2.0.0
+   numpy>=1.24.0
+   scipy>=1.10.0
+   matplotlib>=3.7.0
+4. In `src/filtering/moving_average.py`: Ensure `signal` is converted to `pd.Series`
+   or handle ndarray input to match the interface of other filter modules.
+5. In `raw_data/`: Remove duplicate file `RVCE mechanical strain expert11.20260327122058(1).txt`.
+6. Restore or commit `README.md`.
+
+
+19. FINAL VERDICT
+--------------------------------------------------------------------------------
+NOT APPROVED FOR MERGE
+
+(The branch requires resolving the CRITICAL raw data path mismatch in `main.py`,
+populating `requirements.txt`, and replacing blocking `plt.show()` before merging.)
+================================================================================

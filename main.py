@@ -237,7 +237,7 @@ def main():
     # =========================
 
     raw_directory = Path(
-        "data/raw"
+        "raw_data"
     )
 
     # =========================
