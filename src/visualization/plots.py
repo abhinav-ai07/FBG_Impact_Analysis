@@ -31,7 +31,7 @@ def plot_raw_signals(df):
     plt.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    plt.close()
 
 def plot_wavelength_shift(
     time,
@@ -61,7 +61,7 @@ def plot_wavelength_shift(
     plt.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    plt.close()
 def plot_filter_comparison(
     time,
     raw_signal,
@@ -99,4 +99,4 @@ def plot_filter_comparison(
     plt.grid(True)
 
     plt.tight_layout()
-    plt.show()
+    plt.close()

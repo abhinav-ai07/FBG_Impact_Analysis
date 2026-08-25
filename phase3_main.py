@@ -62,6 +62,7 @@ def process_one_experiment(file_path):
     )
 
     experiment_results = []
+    final_signals = {}
 
     # =========================
     # PROCESS EACH FBG
@@ -97,11 +98,11 @@ def process_one_experiment(file_path):
         # PLOT WAVELENGTH SHIFT
         # =========================
 
-        plot_wavelength_shift(
-            df["time"],
-            wavelength_shift,
-            f"{experiment_name}_{channel}"
-        )
+        # plot_wavelength_shift(
+        #     df["time"],
+        #     wavelength_shift,
+        #     f"{experiment_name}_{channel}"
+        # )
 
         # =========================
         # APPLY FOUR FILTERS
@@ -111,7 +112,14 @@ def process_one_experiment(file_path):
             wavelength_shift,
             SAMPLING_FREQUENCY
         )
+        # =========================
+        # SELECT FINAL FILTER
+        # =========================
 
+        final_signal = filtered_signals[
+           "savitzky_golay"
+]
+        final_signals[channel] = final_signal
         print(
             "\nFilters applied:"
         )
@@ -130,6 +138,35 @@ def process_one_experiment(file_path):
             experiment_name,
             channel
         )
+        final_df = pd.DataFrame({
+            "time": df["time"],
+            "wavelength_shift": final_signal
+        })
+
+        final_output_dir = Path(
+            "data/processed/final"
+        )
+
+        final_output_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        final_output_file = (
+            final_output_dir /
+            f"{experiment_name}_{channel}_FINAL_FILTERED.csv"
+        )
+
+        final_df.to_csv(
+            final_output_file,
+            index=False
+        )
+
+        print(
+            f"\nFinal Savitzky-Golay signal saved:"
+        )
+
+        print(final_output_file)
 
         print(
             f"\nFiltered data saved to:"
@@ -220,13 +257,51 @@ def process_one_experiment(file_path):
         # FILTER COMPARISON PLOT
         # =========================
 
-        plot_filter_comparison(
-            df["time"],
-            wavelength_shift,
-            filtered_signals,
-            f"{experiment_name}_{channel}"
-        )
+        # plot_filter_comparison(
+        #     df["time"],
+        #     wavelength_shift,
+        #     filtered_signals,
+        #     f"{experiment_name}_{channel}"
+        # )
+        # ==================================
+# SAVE MERGED FILE FOR NEXT PHASES
+# ==================================
 
+    if len(final_signals) == 3:
+
+         merged_df = pd.DataFrame({
+        "Time": df["time"],
+        "FBG1_processed": final_signals["FBG1"],
+        "FBG2_processed": final_signals["FBG2"],
+        "FBG3_processed": final_signals["FBG3"]
+    })
+
+         merged_output_dir = Path(
+        "data/processed/final_phase_input"
+    )
+
+         merged_output_dir.mkdir(
+         parents=True,
+         exist_ok=True
+    )
+
+         merged_output_file = (
+        merged_output_dir /
+        f"{experiment_name}_FINAL_FILTERED.csv"
+    )
+
+         merged_df.to_csv(
+        merged_output_file,
+        index=False
+    )
+
+         print(
+        "\nMerged phase-input file saved:"
+    )
+
+         print(
+        merged_output_file
+    )
     return experiment_results
 
 
