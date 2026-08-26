@@ -7,8 +7,8 @@ def calculate_baseline(signal_series, baseline_samples=100):
     Calculate pre-impact baseline mean and noise standard deviation.
     
     Parameters:
-        signal_series (pd.Series or np.ndarray): Raw or filtered FBG signal.
-        baseline_samples (int): Number of initial samples used for baseline.
+        signal_series (pd.Series or np.ndarray): FBG signal.
+        baseline_samples (int): Initial samples used for baseline.
         
     Returns:
         tuple: (baseline_value, noise_std)
@@ -18,7 +18,6 @@ def calculate_baseline(signal_series, baseline_samples=100):
     baseline_window = signal[:num_samples]
     
     baseline_value = float(np.median(baseline_window))
-    # Median Absolute Deviation (MAD) scaled for normal distribution
     mad = np.median(np.abs(baseline_window - baseline_value))
     noise_std = float(mad * 1.4826)
     if noise_std == 0 or np.isnan(noise_std):
@@ -29,52 +28,47 @@ def calculate_baseline(signal_series, baseline_samples=100):
     return baseline_value, noise_std
 
 
-def calculate_peak_shift(signal_corrected, time):
+def calculate_peak_shift(signal_corrected, time, peak_idx):
     """
     1. Peak Shift
-    Calculate maximum excursion relative to baseline.
+    Calculate maximum wavelength shift at the detected Phase 4 peak index.
     
     Returns:
-        tuple: (peak_shift_signed, peak_shift_abs, peak_time, peak_idx)
+        tuple: (peak_shift_signed, peak_shift_abs, peak_time)
     """
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
     
-    if len(signal) == 0:
-        return np.nan, np.nan, np.nan, 0
+    if peak_idx is None or peak_idx < 0 or peak_idx >= len(signal):
+        return np.nan, np.nan, np.nan
         
-    peak_idx = int(np.argmax(np.abs(signal)))
     peak_shift_signed = float(signal[peak_idx])
     peak_shift_abs = float(abs(peak_shift_signed))
     peak_time = float(t[peak_idx])
     
-    return peak_shift_signed, peak_shift_abs, peak_time, peak_idx
+    return peak_shift_signed, peak_shift_abs, peak_time
 
 
-def calculate_residual_shift(signal_corrected, time, recovery_end_idx=None, window_size=50):
+def calculate_residual_shift(signal_corrected, time, recovery_end_idx, window_size=50):
     """
     2. Residual Shift
-    Calculate remaining signal shift after recovery relative to pre-impact baseline.
+    Calculate remaining signal shift after confirmed recovery relative to baseline.
+    If recovery is not confirmed, returns NaN.
     
     Returns:
         tuple: (residual_shift_signed, residual_shift_abs, post_recovery_level)
     """
     signal = np.asarray(signal_corrected)
     
-    if len(signal) == 0:
+    if recovery_end_idx is None or recovery_end_idx >= len(signal):
         return np.nan, np.nan, np.nan
         
-    if recovery_end_idx is not None and recovery_end_idx < len(signal) - 5:
-        start_idx = recovery_end_idx
-        end_idx = min(len(signal), recovery_end_idx + window_size)
-    else:
-        # Use final 15% of recorded samples if explicit recovery end not reached
-        start_idx = max(0, int(len(signal) * 0.85))
-        end_idx = len(signal)
-        
+    start_idx = recovery_end_idx
+    end_idx = min(len(signal), recovery_end_idx + window_size)
     recovery_window = signal[start_idx:end_idx]
+    
     if len(recovery_window) == 0:
-        recovery_window = signal[-10:] if len(signal) >= 10 else signal
+        return np.nan, np.nan, np.nan
         
     residual_shift_signed = float(np.median(recovery_window))
     residual_shift_abs = float(abs(residual_shift_signed))
@@ -83,10 +77,11 @@ def calculate_residual_shift(signal_corrected, time, recovery_end_idx=None, wind
     return residual_shift_signed, residual_shift_abs, post_recovery_level
 
 
-def calculate_rise_time(signal_corrected, time, peak_idx, impact_start_idx=0, low_pct=0.10, high_pct=0.90):
+def calculate_rise_time(signal_corrected, time, event_start_idx, peak_idx, low_pct=0.10, high_pct=0.90):
     """
     3. Rise Time
-    Calculate time required to move from low_pct (10%) to high_pct (90%) of peak excursion.
+    Calculate time required to move from 10% to 90% of peak excursion between event start and peak.
+    If not determinable, returns NaN.
     
     Returns:
         float: rise_time_seconds
@@ -94,20 +89,19 @@ def calculate_rise_time(signal_corrected, time, peak_idx, impact_start_idx=0, lo
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
     
-    if peak_idx <= impact_start_idx or peak_idx >= len(signal):
+    if event_start_idx is None or peak_idx is None or peak_idx <= event_start_idx or peak_idx >= len(signal):
         return np.nan
         
     peak_amp = abs(signal[peak_idx])
     if peak_amp == 0:
-        return 0.0
+        return np.nan
         
-    rising_segment = np.abs(signal[impact_start_idx:peak_idx + 1])
-    rising_time = t[impact_start_idx:peak_idx + 1]
+    rising_segment = np.abs(signal[event_start_idx:peak_idx + 1])
+    rising_time = t[event_start_idx:peak_idx + 1]
     
     target_low = low_pct * peak_amp
     target_high = high_pct * peak_amp
     
-    # Find crossings
     idx_low = np.where(rising_segment >= target_low)[0]
     idx_high = np.where(rising_segment >= target_high)[0]
     
@@ -117,7 +111,6 @@ def calculate_rise_time(signal_corrected, time, peak_idx, impact_start_idx=0, lo
     i_low = idx_low[0]
     i_high = idx_high[0]
     
-    # Linear interpolation for precise timestamps
     if i_low > 0:
         s0, s1 = rising_segment[i_low - 1], rising_segment[i_low]
         t0, t1 = rising_time[i_low - 1], rising_time[i_low]
@@ -140,20 +133,20 @@ def calculate_recovery_time(signal_corrected, time, peak_idx, noise_std, confirm
     """
     4. Recovery Time
     Calculate time required after peak for signal to return to tolerance band around baseline.
+    If the signal does not return and remain within tolerance before recording ends, returns NaN.
     
     Returns:
-        tuple: (recovery_time_seconds, recovery_timestamp, recovery_end_idx)
+        tuple: (recovery_time_seconds, recovery_timestamp, recovery_end_idx, recovery_confirmed)
     """
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
     
-    if peak_idx >= len(signal) - 1:
-        return np.nan, np.nan, len(signal) - 1
+    if peak_idx is None or peak_idx >= len(signal) - 5:
+        return np.nan, np.nan, None, False
         
     peak_time = t[peak_idx]
     peak_amp = abs(signal[peak_idx])
     
-    # Recovery tolerance band: 20% of peak excursion or 3x noise_std, whichever is larger
     tolerance = max(3.0 * noise_std, 0.20 * peak_amp)
     
     post_peak_signal = signal[peak_idx:]
@@ -167,25 +160,21 @@ def calculate_recovery_time(signal_corrected, time, peak_idx, noise_std, confirm
             recovery_rel_idx = i
             break
             
-    if recovery_rel_idx is None:
-        # If signal never stays within tolerance for full confirmation window, use last crossing
-        last_cross = np.where(within_tol)[0]
-        if len(last_cross) > 0:
-            recovery_rel_idx = last_cross[-1]
-        else:
-            return np.nan, np.nan, len(signal) - 1
-            
+    # Check if recovery occurred before end of recording (at least 10 samples margin from end)
+    if recovery_rel_idx is None or (peak_idx + recovery_rel_idx) >= len(signal) - 10:
+        return np.nan, np.nan, None, False
+        
     recovery_end_idx = peak_idx + recovery_rel_idx
     recovery_timestamp = float(t[recovery_end_idx])
     recovery_time_seconds = max(0.0, float(recovery_timestamp - peak_time))
     
-    return recovery_time_seconds, recovery_timestamp, recovery_end_idx
+    return recovery_time_seconds, recovery_timestamp, recovery_end_idx, True
 
 
-def calculate_peak_width(signal_corrected, time, peak_idx):
+def calculate_peak_width(signal_corrected, time, peak_idx, event_start_idx=0, recovery_end_idx=None):
     """
     5. Peak Width (Full Width at Half Maximum - FWHM)
-    Calculate temporal width of impact response at half-maximum excursion.
+    Calculate temporal width of impact response at half-maximum excursion within the event.
     
     Returns:
         float: peak_width_seconds
@@ -193,19 +182,22 @@ def calculate_peak_width(signal_corrected, time, peak_idx):
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
     
-    if len(signal) < 3 or peak_idx < 0 or peak_idx >= len(signal):
+    if peak_idx is None or peak_idx < 0 or peak_idx >= len(signal):
         return np.nan
         
     peak_amp = abs(signal[peak_idx])
     half_max = 0.50 * peak_amp
     if half_max == 0:
-        return 0.0
+        return np.nan
         
     abs_signal = np.abs(signal)
     
-    # Left crossing (before peak)
-    left_signal = abs_signal[:peak_idx + 1]
-    left_time = t[:peak_idx + 1]
+    end_bound = recovery_end_idx if recovery_end_idx is not None else len(signal) - 1
+    start_bound = event_start_idx if event_start_idx is not None else 0
+    
+    # Left crossing
+    left_signal = abs_signal[start_bound:peak_idx + 1]
+    left_time = t[start_bound:peak_idx + 1]
     left_above = np.where(left_signal >= half_max)[0]
     
     if len(left_above) > 0:
@@ -217,11 +209,11 @@ def calculate_peak_width(signal_corrected, time, peak_idx):
         else:
             t_half_left = left_time[0]
     else:
-        t_half_left = t[0]
+        return np.nan
         
-    # Right crossing (after peak)
-    right_signal = abs_signal[peak_idx:]
-    right_time = t[peak_idx:]
+    # Right crossing
+    right_signal = abs_signal[peak_idx:end_bound + 1]
+    right_time = t[peak_idx:end_bound + 1]
     right_below = np.where(right_signal < half_max)[0]
     
     if len(right_below) > 0:
@@ -233,16 +225,16 @@ def calculate_peak_width(signal_corrected, time, peak_idx):
         else:
             t_half_right = right_time[0]
     else:
-        t_half_right = t[-1]
+        return np.nan
         
     peak_width_seconds = max(0.0, float(t_half_right - t_half_left))
     return peak_width_seconds
 
 
-def calculate_max_slope(signal_corrected, time):
+def calculate_max_slope(signal_corrected, time, event_start_idx, event_end_idx):
     """
     6. Maximum Slope
-    Calculate maximum rate of signal change max(|dSignal/dt|).
+    Calculate max(|dSignal/dt|) within the Phase 4 event boundary.
     
     Returns:
         tuple: (max_slope_pos, max_slope_neg, max_slope_abs)
@@ -250,12 +242,18 @@ def calculate_max_slope(signal_corrected, time):
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
     
-    if len(signal) < 2:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan, np.nan, np.nan
         
-    dt = np.gradient(t)
+    seg_sig = signal[event_start_idx:event_end_idx + 1]
+    seg_t = t[event_start_idx:event_end_idx + 1]
+    
+    if len(seg_sig) < 2:
+        return np.nan, np.nan, np.nan
+        
+    dt = np.gradient(seg_t)
     dt[dt == 0] = 1e-6
-    ds = np.gradient(signal)
+    ds = np.gradient(seg_sig)
     slope = ds / dt
     
     max_slope_pos = float(np.max(slope))
@@ -265,118 +263,111 @@ def calculate_max_slope(signal_corrected, time):
     return max_slope_pos, max_slope_neg, max_slope_abs
 
 
-def calculate_rms(signal_corrected):
+def calculate_rms(signal_corrected, event_start_idx, event_end_idx):
     """
     7. RMS
-    Calculate Root Mean Square of baseline-corrected signal.
-    Formula: RMS = sqrt(mean(x^2))
-    
-    Returns:
-        float: rms_val
+    Calculate RMS over Phase 4 event window: sqrt(mean(x^2)).
     """
     signal = np.asarray(signal_corrected)
-    if len(signal) == 0:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan
-    return float(np.sqrt(np.mean(signal ** 2)))
+    window = signal[event_start_idx:event_end_idx + 1]
+    if len(window) == 0:
+        return np.nan
+    return float(np.sqrt(np.mean(window ** 2)))
 
 
-def calculate_signal_energy(signal_corrected, time):
+def calculate_signal_energy(signal_corrected, time, event_start_idx, event_end_idx):
     """
     8. Signal Energy
-    Calculate impact signal energy: Energy = integral x(t)^2 dt
-    
-    Returns:
-        float: signal_energy
+    Calculate signal energy over Phase 4 event window: integral x(t)^2 dt.
     """
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
-    
-    if len(signal) < 2:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan
-    energy = float(trapezoid(signal ** 2, x=t))
-    return energy
+    win_sig = signal[event_start_idx:event_end_idx + 1]
+    win_t = t[event_start_idx:event_end_idx + 1]
+    if len(win_sig) < 2:
+        return np.nan
+    return float(trapezoid(win_sig ** 2, x=win_t))
 
 
-def calculate_peak_to_peak(signal_corrected):
+def calculate_peak_to_peak(signal_corrected, event_start_idx, event_end_idx):
     """
     9. Peak-to-Peak
-    Calculate Peak-to-Peak amplitude: max(x) - min(x)
-    
-    Returns:
-        float: peak_to_peak
+    Calculate max(x) - min(x) over Phase 4 event window.
     """
     signal = np.asarray(signal_corrected)
-    if len(signal) == 0:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan
-    return float(np.max(signal) - np.min(signal))
+    window = signal[event_start_idx:event_end_idx + 1]
+    if len(window) == 0:
+        return np.nan
+    return float(np.max(window) - np.min(window))
 
 
-def calculate_variance(signal_corrected, ddof=1):
+def calculate_variance(signal_corrected, event_start_idx, event_end_idx, ddof=1):
     """
     10. Variance
-    Calculate variance of baseline-corrected signal.
-    
-    Returns:
-        float: variance
+    Calculate sample variance over Phase 4 event window.
     """
     signal = np.asarray(signal_corrected)
-    if len(signal) <= ddof:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan
-    return float(np.var(signal, ddof=ddof))
+    window = signal[event_start_idx:event_end_idx + 1]
+    if len(window) <= ddof:
+        return np.nan
+    return float(np.var(window, ddof=ddof))
 
 
-def calculate_std(signal_corrected, ddof=1):
+def calculate_std(signal_corrected, event_start_idx, event_end_idx, ddof=1):
     """
     11. Standard Deviation
-    Calculate standard deviation of baseline-corrected signal.
-    
-    Returns:
-        float: std_dev
+    Calculate sample standard deviation over Phase 4 event window.
     """
     signal = np.asarray(signal_corrected)
-    if len(signal) <= ddof:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan
-    return float(np.std(signal, ddof=ddof))
+    window = signal[event_start_idx:event_end_idx + 1]
+    if len(window) <= ddof:
+        return np.nan
+    return float(np.std(window, ddof=ddof))
 
 
-def calculate_entropy(signal_corrected, bins="fd"):
+def calculate_entropy(signal_corrected, event_start_idx, event_end_idx, bins="fd"):
     """
     12. Entropy
-    Calculate histogram-based Shannon entropy H = -sum p log2(p).
-    
-    Returns:
-        float: entropy_bits
+    Calculate histogram-based Shannon entropy over Phase 4 event window.
     """
     signal = np.asarray(signal_corrected)
-    if len(signal) < 2:
-        return 0.0
-        
-    counts, _ = np.histogram(signal, bins=bins)
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
+        return np.nan
+    window = signal[event_start_idx:event_end_idx + 1]
+    if len(window) < 2:
+        return np.nan
+    counts, _ = np.histogram(window, bins=bins)
     total = counts.sum()
     if total == 0:
         return 0.0
-        
     probs = counts / total
     probs = probs[probs > 0]
-    entropy_bits = float(-np.sum(probs * np.log2(probs)))
-    return entropy_bits
+    return float(-np.sum(probs * np.log2(probs)))
 
 
-def calculate_auc(signal_corrected, time):
+def calculate_auc(signal_corrected, time, event_start_idx, event_end_idx):
     """
     13. Area Under Curve (AUC)
-    Calculate signed AUC integral x(t) dt and absolute AUC integral |x(t)| dt.
-    
-    Returns:
-        tuple: (auc_signed, auc_abs)
+    Calculate signed AUC and absolute AUC over Phase 4 event window.
     """
     signal = np.asarray(signal_corrected)
     t = np.asarray(time)
-    
-    if len(signal) < 2:
+    if event_start_idx is None or event_end_idx is None or event_end_idx <= event_start_idx:
         return np.nan, np.nan
-        
-    auc_signed = float(trapezoid(signal, x=t))
-    auc_abs = float(trapezoid(np.abs(signal), x=t))
-    
+    win_sig = signal[event_start_idx:event_end_idx + 1]
+    win_t = t[event_start_idx:event_end_idx + 1]
+    if len(win_sig) < 2:
+        return np.nan, np.nan
+    auc_signed = float(trapezoid(win_sig, x=win_t))
+    auc_abs = float(trapezoid(np.abs(win_sig), x=win_t))
     return auc_signed, auc_abs

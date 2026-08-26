@@ -3,6 +3,11 @@ import glob
 import pandas as pd
 import numpy as np
 
+from peak_detection import detect_peak
+from threshold_detection import detect_threshold
+from derivative_detection import detect_derivative
+from changepoint_detection import detect_changepoint
+
 from src.engineering_features import (
     calculate_baseline,
     calculate_peak_shift,
@@ -20,14 +25,13 @@ from src.engineering_features import (
     calculate_auc
 )
 
-# Material mapping for FBG channels
+# Material mapping for FBG channels (STRICTLY CONSISTENT)
 MATERIAL_MAP = {
     "FBG1": "Copper",
     "FBG2": "Bare",
     "FBG3": "Steel"
 }
 
-# Unit mapping for all 13 features
 FEATURE_UNITS = {
     "peak_shift_signed": "nm",
     "peak_shift_abs": "nm",
@@ -55,80 +59,118 @@ FEATURE_UNITS = {
 
 def extract_features_for_signal(time_series, signal_series, impact_detected=True, baseline_samples=100):
     """
-    Extract all 13 engineering features for a single FBG time-series signal.
+    Extract Phase 5 engineering features for a single FBG signal.
     
-    Parameters:
-        time_series (pd.Series or np.ndarray): Time vector in seconds.
-        signal_series (pd.Series or np.ndarray): Processed wavelength shift in nm.
-        impact_detected (bool): Whether an impact event was detected in Phase 4.
-        baseline_samples (int): Number of initial samples for pre-impact baseline.
-        
-    Returns:
-        dict: Complete feature dictionary with key-value pairs.
+    If impact_detected is False (NO IMPACT case), returns NaN for all impact-event features.
     """
     time = np.asarray(time_series)
     signal = np.asarray(signal_series)
     
-    # 1. Baseline calculation
+    # Baseline calculation
     baseline_val, noise_std = calculate_baseline(signal, baseline_samples=baseline_samples)
     signal_corrected = signal - baseline_val
     
-    # 2. Peak Shift & Timing
-    peak_shift_signed, peak_shift_abs, peak_time, peak_idx = calculate_peak_shift(signal_corrected, time)
+    # ----------------------------------------------------
+    # NO IMPACT CASE: Return NaN for event-based features
+    # ----------------------------------------------------
+    if not impact_detected:
+        return {
+            "baseline_nm": baseline_val,
+            "noise_std_nm": noise_std,
+            "peak_shift_signed": np.nan,
+            "peak_shift_abs": np.nan,
+            "peak_time": np.nan,
+            "residual_shift_signed": np.nan,
+            "residual_shift_abs": np.nan,
+            "recovered_level": np.nan,
+            "rise_time_seconds": np.nan,
+            "recovery_time_seconds": np.nan,
+            "recovery_timestamp": np.nan,
+            "peak_width_seconds": np.nan,
+            "max_slope_pos": np.nan,
+            "max_slope_neg": np.nan,
+            "max_slope_abs": np.nan,
+            "rms": np.nan,
+            "signal_energy": np.nan,
+            "peak_to_peak": np.nan,
+            "variance": np.nan,
+            "std_dev": np.nan,
+            "entropy": np.nan,
+            "auc_signed": np.nan,
+            "auc_abs": np.nan
+        }
+        
+    # ----------------------------------------------------
+    # IMPACT CASE: Use Phase 4 detected event boundaries
+    # ----------------------------------------------------
+    p_res, p_t, _, _, _, _, _ = detect_peak(time_series, signal_series)
+    t_res, t_t, _, _, _, _, _ = detect_threshold(time_series, signal_series)
+    d_res, d_t, _, _, _, _, _ = detect_derivative(time_series, signal_series)
+    c_res, c_t, _, _, _, _, _ = detect_changepoint(time_series, signal_series)
     
-    # 3. Recovery Time & Event Window Boundaries
-    recovery_time_seconds, recovery_timestamp, recovery_end_idx = calculate_recovery_time(
+    triggers = [tm for res, tm in [(p_res, p_t), (t_res, t_t), (d_res, d_t), (c_res, c_t)] if res and tm is not None]
+    
+    if not triggers:
+        # Fallback if no specific method timestamp was captured
+        event_start_idx = 0
+    else:
+        earliest_trigger = min(triggers)
+        event_start_idx = int(np.searchsorted(time, earliest_trigger))
+        
+    # Peak index within Phase 4 event window (next 200 samples / 4 seconds)
+    search_end = min(len(signal_corrected), event_start_idx + 200)
+    event_segment = signal_corrected[event_start_idx:search_end]
+    if len(event_segment) > 0:
+        rel_peak_idx = int(np.argmax(np.abs(event_segment)))
+        peak_idx = event_start_idx + rel_peak_idx
+    else:
+        peak_idx = event_start_idx
+        
+    # 1. Peak Shift
+    peak_shift_signed, peak_shift_abs, peak_time = calculate_peak_shift(signal_corrected, time, peak_idx)
+    
+    # 2. Recovery Time
+    recovery_time_seconds, recovery_timestamp, recovery_end_idx, rec_confirmed = calculate_recovery_time(
         signal_corrected, time, peak_idx, noise_std
     )
     
-    # 4. Residual Shift
+    # Event end boundary
+    event_end_idx = recovery_end_idx if (rec_confirmed and recovery_end_idx is not None) else min(len(signal_corrected) - 1, peak_idx + 150)
+    
+    # 3. Residual Shift
     residual_shift_signed, residual_shift_abs, recovered_level = calculate_residual_shift(
-        signal_corrected, time, recovery_end_idx=recovery_end_idx
+        signal_corrected, time, recovery_end_idx if rec_confirmed else None
     )
     
-    # 5. Impact Event Window Selection
-    # For baseline-corrected feature analysis, analyze event region around impact
-    impact_start_idx = max(0, peak_idx - 50)
-    event_signal = signal_corrected[impact_start_idx:min(len(signal_corrected), recovery_end_idx + 10)]
-    event_time = time[impact_start_idx:min(len(time), recovery_end_idx + 10)]
+    # 4. Rise Time
+    rise_time_seconds = calculate_rise_time(signal_corrected, time, event_start_idx, peak_idx)
     
-    if len(event_signal) < 5:
-        event_signal = signal_corrected
-        event_time = time
-        
-    rel_peak_idx = peak_idx - impact_start_idx
-    if rel_peak_idx < 0 or rel_peak_idx >= len(event_signal):
-        rel_peak_idx = int(np.argmax(np.abs(event_signal)))
-        
-    # 6. Rise Time
-    rise_time_seconds = calculate_rise_time(event_signal, event_time, rel_peak_idx, impact_start_idx=0)
+    # 5. Peak Width (FWHM)
+    peak_width_seconds = calculate_peak_width(signal_corrected, time, peak_idx, event_start_idx, event_end_idx)
     
-    # 7. Peak Width (FWHM)
-    peak_width_seconds = calculate_peak_width(event_signal, event_time, rel_peak_idx)
+    # 6. Maximum Slope
+    max_slope_pos, max_slope_neg, max_slope_abs = calculate_max_slope(signal_corrected, time, event_start_idx, event_end_idx)
     
-    # 8. Maximum Slope
-    max_slope_pos, max_slope_neg, max_slope_abs = calculate_max_slope(event_signal, event_time)
+    # 7. RMS
+    rms_val = calculate_rms(signal_corrected, event_start_idx, event_end_idx)
     
-    # 9. RMS
-    rms_val = calculate_rms(event_signal)
+    # 8. Signal Energy
+    signal_energy = calculate_signal_energy(signal_corrected, time, event_start_idx, event_end_idx)
     
-    # 10. Signal Energy
-    signal_energy = calculate_signal_energy(event_signal, event_time)
+    # 9. Peak-to-Peak
+    peak_to_peak = calculate_peak_to_peak(signal_corrected, event_start_idx, event_end_idx)
     
-    # 11. Peak-to-Peak
-    peak_to_peak = calculate_peak_to_peak(event_signal)
+    # 10. Variance
+    variance_val = calculate_variance(signal_corrected, event_start_idx, event_end_idx)
     
-    # 12. Variance
-    variance_val = calculate_variance(event_signal)
+    # 11. Standard Deviation
+    std_val = calculate_std(signal_corrected, event_start_idx, event_end_idx)
     
-    # 13. Standard Deviation
-    std_val = calculate_std(event_signal)
+    # 12. Entropy
+    entropy_bits = calculate_entropy(signal_corrected, event_start_idx, event_end_idx)
     
-    # 14. Entropy
-    entropy_bits = calculate_entropy(event_signal)
-    
-    # 15. Area Under Curve (AUC)
-    auc_signed, auc_abs = calculate_auc(event_signal, event_time)
+    # 13. Area Under Curve (AUC)
+    auc_signed, auc_abs = calculate_auc(signal_corrected, time, event_start_idx, event_end_idx)
     
     features = {
         "baseline_nm": baseline_val,
@@ -161,10 +203,7 @@ def extract_features_for_signal(time_series, signal_series, impact_detected=True
 
 def extract_all_dataset_features(data_dir="data/processed/final_phase_input", phase4_dir="results/phase4"):
     """
-    Extract Phase 5 features for all datasets and sensors in the repository.
-    
-    Returns:
-        tuple: (all_features_df, long_format_df)
+    Extract Phase 5 features across all datasets using verified Phase 4 detection results.
     """
     csv_files = glob.glob(os.path.join(data_dir, "*.csv"))
     
@@ -177,7 +216,6 @@ def extract_all_dataset_features(data_dir="data/processed/final_phase_input", ph
             
     csv_files.sort(key=extract_expert_num)
     
-    # Load Phase 4 method results if present
     phase4_results_path = os.path.join(phase4_dir, "phase4_method_results.csv")
     phase4_df = None
     if os.path.exists(phase4_results_path):
@@ -207,8 +245,7 @@ def extract_all_dataset_features(data_dir="data/processed/final_phase_input", ph
             signal_series = df[col_name]
             material = MATERIAL_MAP.get(fbg, "Unknown")
             
-            # Check Phase 4 detection status
-            impact_status = "UNKNOWN"
+            impact_status = "NO IMPACT"
             methods_detected = 0
             if phase4_df is not None:
                 match = phase4_df[(phase4_df["Dataset"] == expert_name) & (phase4_df["FBG"] == fbg)]
@@ -233,7 +270,6 @@ def extract_all_dataset_features(data_dir="data/processed/final_phase_input", ph
             }
             records.append(row)
             
-            # Long format records for each feature
             for feat_key, feat_val in feats.items():
                 unit = FEATURE_UNITS.get(feat_key, "")
                 long_records.append({

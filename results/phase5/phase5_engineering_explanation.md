@@ -1,36 +1,28 @@
-# Phase 5 – Material Comparison & Engineering Explanation
+# Phase 5 – Conservative Material Comparison & Empirical Observations
 
 ## Overview
-This document provides quantitative comparison and physical engineering interpretations for the 13 extracted signal features across Bare (FBG2), Copper (FBG1), and Steel (FBG3) packaging conditions.
+This document provides quantitative comparisons for the 13 extracted signal features across confirmed Phase 4 IMPACT cases only (12 total impact events across FBG1 Copper, FBG2 Bare, and FBG3 Steel).
 
-## Engineering Comparison Table
+## Empirical Signal Comparison Table (Impact Cases Only)
 
-| Feature | Bare (FBG2) | Copper (FBG1) | Steel (FBG3) | Engineering Explanation |
+| Feature | Bare (FBG2) | Copper (FBG1) | Steel (FBG3) | Observed Signal Description |
 | --- | --- | --- | --- | --- |
-| Peak Shift (Absolute) (nm) | 0.029846 | 0.007753 | 0.002776 | Bare FBG (FBG2) lacks protective metallic coating, yielding direct strain transfer and the highest peak shift (0.0298 nm). Copper packaging (FBG1) acts as a compliant layer that redistributes part of the applied strain (0.0078 nm). Steel packaging (FBG3) has high stiffness and elastic modulus, sharing structural load and producing the smallest peak shift (0.0028 nm). |
-| Residual Shift (Absolute) (nm) | 0.013289 | 0.000782 | 0.000387 | Bare silica fiber (FBG2) displays measurable residual shift when localized post-impact strain persists in the host structure. Copper (FBG1) exhibits lower residual shift post-recovery. Steel (FBG3) exhibits minimal residual offset due to high elastic recovery and structural rigidity. |
-| Rise Time (s) | 0.474321 | 0.980776 | 0.936835 | Bare FBG (FBG2) shows fast dynamic rise response to impact. Copper (FBG1) displays immediate wavefront rise time (~0.98 s). Steel (FBG3) exhibits fast acoustic stress wave propagation (~0.94 s). |
-| Recovery Time (s) | 10.795891 | 0.034285 | 0.023333 | Bare fiber (FBG2) displays extended transient ring-down and recovery settling (~10.80 s) due to unconstrained host vibrations. Copper (FBG1) recovers quickly as elastic strain dissipates cleanly (~0.034 s). Steel (FBG3) recovers rapidly due to high structural stiffness and damping (~0.023 s). |
-| Peak Width (FWHM) (s) | 1.468532 | 0.660927 | 0.676516 | Bare FBG (FBG2) exhibits a broader impulse duration (FWHM ~1.47 s) due to extended dynamic response. Copper (FBG1) produces a narrower pulse duration (~0.66 s). Steel (FBG3) maintains a crisp pulse width (~0.68 s) dictated by high stiffness. |
-| Maximum Slope (nm/s) | 0.452123 | 0.134905 | 0.058507 | Bare FBG (FBG2) exhibits the highest maximum slope (0.452 nm/s) due to direct stress wave engagement. Copper (FBG1) exhibits lower maximum slope (0.135 nm/s) as metallic matrix absorbs high-frequency impulse transients. Steel (FBG3) exhibits lower maximum slope (0.059 nm/s) due to load redistribution. |
-| RMS (nm) | 0.013155 | 0.002847 | 0.000952 | Bare FBG (FBG2) RMS (0.0132 nm) reflects pure dynamic strain excursion across the impact event window. Copper (FBG1) RMS (0.0028 nm) is constrained by metallic packaging. Steel (FBG3) RMS (0.0010 nm) is minimized by structural stiffness. |
-| Signal Energy (nm²·s) | 0.002672 | 0.000009 | 0.000001 | Signal energy ∫x(t)²dt is highest for Bare FBG (FBG2) (0.00267 nm²·s) where peak strain excursion and extended duration coincide. Copper (FBG1) (0.000009 nm²·s) and Steel (FBG3) (0.000001 nm²·s) exhibit lower signal energy due to packaging attenuation. |
-| Peak-to-Peak (nm) | 0.036685 | 0.011558 | 0.004132 | Peak-to-peak amplitude captures total dynamic range: Bare (FBG2, 0.0367 nm) > Copper (FBG1, 0.0116 nm) > Steel (FBG3, 0.0041 nm). |
-| Variance (nm²) | 0.000054 | 0.000007 | 0.000001 | Variance represents the spread of transient strain excursions: Bare (FBG2) > Copper (FBG1) > Steel (FBG3). |
-| Standard Deviation (nm) | 0.005360 | 0.002636 | 0.000905 | Standard deviation scales directly with strain excursion amplitude: Bare (FBG2) > Copper (FBG1) > Steel (FBG3). |
-| Distributional Entropy (bits) | 3.293546 | 2.466144 | 2.630466 | Distributional Shannon entropy measures signal complexity: Bare FBG (FBG2, 3.29 bits) exhibits higher complexity due to dynamic ring-down, while Copper (FBG1, 2.47 bits) and Steel (FBG3, 2.63 bits) display lower entropy. |
-| Area Under Curve (Absolute) (nm·s) | 0.145409 | 0.002368 | 0.000800 | Absolute Area Under Curve ∫|x(t)|dt quantifies cumulative total mechanical deformation impulse: Bare (FBG2, 0.1454 nm·s) > Copper (FBG1, 0.0024 nm·s) > Steel (FBG3, 0.0008 nm·s). |
+| Peak Shift (Absolute) (nm) | 0.019940 (n=7) | 0.007880 (n=3) | 0.002564 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.019940 nm (n=7), Copper FBG1 averages 0.007880 nm (n=3), and Steel FBG3 averages 0.002564 nm (n=2). |
+| Residual Shift (Absolute) (nm) | 0.004239 (n=4) | 0.001090 (n=3) | 0.000469 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.004239 nm (n=4), Copper FBG1 averages 0.001090 nm (n=3), and Steel FBG3 averages 0.000469 nm (n=2). |
+| Rise Time (s) | 0.225994 (n=7) | 1.233187 (n=3) | 0.058054 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.225994 s (n=7), Copper FBG1 averages 1.233187 s (n=3), and Steel FBG3 averages 0.058054 s (n=2). |
+| Recovery Time (s) | 10.794892 (n=4) | 0.040000 (n=3) | 0.020000 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 10.794892 s (n=4), Copper FBG1 averages 0.040000 s (n=3), and Steel FBG3 averages 0.020000 s (n=2). |
+| Peak Width (FWHM) (s) | 12.409526 (n=3) | N/A | 1.738076 (n=1) | Reported mean across confirmed Phase 4 impact events: Bare FBG2 (12.409526 (n=3)), Copper FBG1 (N/A), Steel FBG3 (1.738076 (n=1)). |
+| Maximum Slope (nm/s) | 0.133268 (n=7) | 0.136232 (n=3) | 0.052209 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.133268 nm/s (n=7), Copper FBG1 averages 0.136232 nm/s (n=3), and Steel FBG3 averages 0.052209 nm/s (n=2). |
+| RMS (nm) | 0.015421 (n=7) | 0.003867 (n=3) | 0.000973 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.015421 nm (n=7), Copper FBG1 averages 0.003867 nm (n=3), and Steel FBG3 averages 0.000973 nm (n=2). |
+| Signal Energy (nm²·s) | 0.002503 (n=7) | 0.000012 (n=3) | 0.000002 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.002503 nm²·s (n=7), Copper FBG1 averages 0.000012 nm²·s (n=3), and Steel FBG3 averages 0.000002 nm²·s (n=2). |
+| Peak-to-Peak (nm) | 0.015676 (n=7) | 0.010213 (n=3) | 0.004367 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.015676 nm (n=7), Copper FBG1 averages 0.010213 nm (n=3), and Steel FBG3 averages 0.004367 nm (n=2). |
+| Variance (nm²) | 0.000017 (n=7) | 0.000007 (n=3) | 0.000001 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.000017 nm² (n=7), Copper FBG1 averages 0.000007 nm² (n=3), and Steel FBG3 averages 0.000001 nm² (n=2). |
+| Standard Deviation (nm) | 0.002630 (n=7) | 0.002529 (n=3) | 0.000811 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.002630 nm (n=7), Copper FBG1 averages 0.002529 nm (n=3), and Steel FBG3 averages 0.000811 nm (n=2). |
+| Distributional Entropy (bits) | 3.310566 (n=7) | 1.992344 (n=3) | 3.046085 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 3.310566 bits (n=7), Copper FBG1 averages 1.992344 bits (n=3), and Steel FBG3 averages 3.046085 bits (n=2). |
+| Area Under Curve (Absolute) (nm·s) | 0.124820 (n=7) | 0.003136 (n=3) | 0.002024 (n=2) | Under tested Phase 4 impact events: Bare FBG2 averages 0.124820 nm·s (n=7), Copper FBG1 averages 0.003136 nm·s (n=3), and Steel FBG3 averages 0.002024 nm·s (n=2). |
 
-## Physical Mechanism Chains
+## Methodological Summary
 
-### 1. Peak Shift & Strain Transfer
-```text
-Bare FBG (FBG2) --> Direct Fiber Contact --> Maximum Strain Transfer --> Largest Peak Shift (Bare > Copper > Steel)
-Copper (FBG1)   --> Compliant Metallic Layer --> Strain Redistribution & Absorption --> Moderate Peak Shift
-Steel (FBG3)    --> High Elastic Modulus Packaging --> Structural Load Sharing --> Smallest Peak Shift
-```
-
-### 2. Recovery Dynamics & Energy Dissipation
-```text
-Impact Energy --> Material Packaging Response --> Mechanical Reflection/Absorption --> Transient Duration & Recovery Time
-```
+1. **Phase 4 Event Grounding**: All features are extracted strictly from the Phase 4 detected impact event window.
+2. **Separation of Impact vs No-Impact**: The 9 NO-IMPACT cases are excluded from impact feature metrics.
+3. **Conservative Interpretation**: Results report direct empirical signal measurements rather than unverified material claims.

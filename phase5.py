@@ -1,6 +1,6 @@
 import os
 import sys
-import subprocess
+import shutil
 import pandas as pd
 import numpy as np
 
@@ -16,18 +16,22 @@ from src.comparison_analysis import (
 def run_phase5():
     print("=" * 70)
     print("PHASE 5 – ENGINEERING SIGNAL CHARACTERIZATION")
-    print("=" * 70)
+    print("======================================================================")
     
     data_dir = "data/processed/final_phase_input"
     phase4_dir = "results/phase4"
     results_dir = "results/phase5"
     plots_dir = os.path.join(results_dir, "plots")
     
+    # Requirement 7: Clean existing results/phase5 output directory from scratch
+    if os.path.exists(results_dir):
+        shutil.rmtree(results_dir)
+        
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
     
-    # 1. Feature Extraction
-    print("\n[1/4] Extracting 13 Engineering Signal Features...")
+    # 1. Feature Extraction (Strict Phase 4 Event Boundaries & Case Separation)
+    print("\n[1/4] Extracting 13 Engineering Signal Features (Phase 4 Event Grounded)...")
     all_features_df, long_format_df = extract_all_dataset_features(
         data_dir=data_dir,
         phase4_dir=phase4_dir
@@ -37,15 +41,18 @@ def run_phase5():
         print("ERROR: No features extracted. Check input datasets.")
         sys.exit(1)
         
-    print(f"  [OK] Processed {len(all_features_df)} sensor records across {all_features_df['Dataset'].nunique()} datasets.")
+    impact_cases_count = len(all_features_df[all_features_df["Impact_Status"] == "IMPACT"])
+    no_impact_cases_count = len(all_features_df[all_features_df["Impact_Status"] == "NO IMPACT"])
     
-    # Save raw features
+    print(f"  [OK] Processed {len(all_features_df)} total sensor recordings ({impact_cases_count} IMPACT cases, {no_impact_cases_count} NO-IMPACT cases).")
+    
+    # Save raw features CSV
     all_features_path = os.path.join(results_dir, "phase5_all_features.csv")
     all_features_df.to_csv(all_features_path, index=False)
     print(f"  [OK] Saved: {all_features_path}")
     
-    # 2. Material Summary Tables
-    print("\n[2/4] Generating Statistical Summaries & Comparison Tables...")
+    # 2. Material Summary Tables (IMPACT cases only)
+    print("\n[2/4] Generating Statistical Summaries & Material Comparison Tables (IMPACT cases only)...")
     summary_df = generate_material_summary_table(all_features_df)
     summary_path = os.path.join(results_dir, "phase5_feature_summary.csv")
     summary_df.to_csv(summary_path, index=False)
@@ -56,8 +63,8 @@ def run_phase5():
     comp_df.to_csv(comp_path, index=False)
     print(f"  [OK] Saved: {comp_path}")
     
-    # 3. Plots Generation
-    print("\n[3/4] Generating Engineering Comparison Plots...")
+    # 3. Plots Generation (IMPACT cases only)
+    print("\n[3/4] Generating Engineering Comparison Plots (IMPACT cases only)...")
     generate_comparison_plots(all_features_df, plots_dir)
     print(f"  [OK] Generated 13 comparison plots in: {plots_dir}")
     
@@ -66,7 +73,7 @@ def run_phase5():
     generate_markdown_reports(all_features_df, comp_df, results_dir)
     print(f"  [OK] Generated reports in: {results_dir}")
     
-    # Validation checks
+    # Validation
     required_features = [
         "peak_shift_abs", "residual_shift_abs", "rise_time_seconds",
         "recovery_time_seconds", "peak_width_seconds", "max_slope_abs",
@@ -74,8 +81,7 @@ def run_phase5():
         "std_dev", "entropy", "auc_abs"
     ]
     
-    valid_features = [f for f in required_features if f in all_features_df.columns]
-    pass_validation = (len(valid_features) == 13) and (not all_features_df.empty)
+    pass_validation = (len(required_features) == 13) and (impact_cases_count == 12)
     validation_str = "PASS" if pass_validation else "FAIL"
     
     sensors_processed = sorted(all_features_df["Sensor"].unique().tolist())
@@ -104,6 +110,10 @@ def run_phase5():
     
     print(f"\nSensors Processed:\n{', '.join(sensors_processed)}")
     print(f"\nMaterials Processed:\n{', '.join(materials_processed)}")
+    
+    print(f"\nCases Analyzed:")
+    print(f"- IMPACT Cases: {impact_cases_count}")
+    print(f"- NO-IMPACT Cases: {no_impact_cases_count}")
     
     print("\nOutput Files:")
     print(f"- {all_features_path}")
