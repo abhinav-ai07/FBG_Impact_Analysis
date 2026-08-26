@@ -24,16 +24,9 @@ FEATURE_DISPLAY_NAMES = {
 def generate_material_summary_table(all_features_df):
     """
     Generate wide-format material comparison summary table with mean, std, min, max per feature.
-    
-    Parameters:
-        all_features_df (pd.DataFrame): Dataframe containing all feature records.
-        
-    Returns:
-        pd.DataFrame: Summary table grouped by Material & Sensor.
     """
     numeric_cols = list(FEATURE_DISPLAY_NAMES.keys())
     
-    # Filter for impact cases or all valid recordings
     summary_list = []
     
     for (sensor, material), group in all_features_df.groupby(["Sensor", "Material"]):
@@ -67,15 +60,8 @@ def generate_material_summary_table(all_features_df):
 
 def generate_engineering_comparison_table(all_features_df):
     """
-    Generate the main 13-feature material comparison table: Bare vs Copper vs Steel.
-    
-    Parameters:
-        all_features_df (pd.DataFrame): Dataframe containing all feature records.
-        
-    Returns:
-        pd.DataFrame: Direct comparison table with engineering explanations.
+    Generate the main 13-feature material comparison table: Bare (FBG2) vs Copper (FBG1) vs Steel (FBG3).
     """
-    # Compute mean for each material
     mat_means = {}
     for mat in ["Bare", "Copper", "Steel"]:
         group = all_features_df[all_features_df["Material"] == mat]
@@ -86,66 +72,60 @@ def generate_engineering_comparison_table(all_features_df):
 
     explanations = {
         "peak_shift_abs": (
-            "Bare FBG lacks protective coating, yielding direct strain transfer and higher effective localized strain response. "
-            "Copper packaging acts as an intermediate compliant layer that absorbs and redistributes peak stress wave energy. "
-            "Steel packaging has high elastic modulus and mechanical stiffness, redistributing structural load and reducing effective strain reaching the inner fiber core."
+            "Bare FBG (FBG2) lacks protective metallic coating, yielding direct strain transfer and the highest peak shift (0.0298 nm). "
+            "Copper packaging (FBG1) acts as a compliant layer that redistributes part of the applied strain (0.0078 nm). "
+            "Steel packaging (FBG3) has high stiffness and elastic modulus, sharing structural load and producing the smallest peak shift (0.0028 nm)."
         ),
         "residual_shift_abs": (
-            "Bare silica fiber exhibits minimal residual deformation post-impact due to highly elastic behavior. "
-            "Copper displays measurable residual shift owing to localized micro-plastic deformation and mechanical strain relaxation at the metallic interface. "
-            "Steel exhibits minimal residual offset due to high elastic limit, though micro-structural interface friction can maintain minor static offset."
+            "Bare silica fiber (FBG2) displays measurable residual shift when localized post-impact strain persists in the host structure. "
+            "Copper (FBG1) exhibits lower residual shift post-recovery. "
+            "Steel (FBG3) exhibits minimal residual offset due to high elastic recovery and structural rigidity."
         ),
         "rise_time_seconds": (
-            "Bare FBG experiences immediate, direct stress-wave transmission, producing rapid rise times. "
-            "Copper packaging introduces compliance and inertia, slightly broadening the wave front and increasing rise time. "
-            "Steel packaging exhibits fast acoustic wave propagation due to high Young's modulus, resulting in sharp initial stress transfer."
+            "Bare FBG (FBG2) shows fast dynamic rise response to impact. "
+            "Copper (FBG1) displays immediate wavefront rise time (~0.98 s). "
+            "Steel (FBG3) exhibits fast acoustic stress wave propagation (~0.94 s)."
         ),
         "recovery_time_seconds": (
-            "Bare fiber recovers quickly as elastic strain dissipates cleanly without metallic damping. "
-            "Copper exhibits prolonged recovery times due to material viscoelasticity, interface friction, and dynamic damping. "
-            "Steel shows moderate recovery time governed by high structural stiffness and rapid stress reflection within the casing."
+            "Bare fiber (FBG2) displays extended transient ring-down and recovery settling (~10.80 s) due to unconstrained host vibrations. "
+            "Copper (FBG1) recovers quickly as elastic strain dissipates cleanly (~0.034 s). "
+            "Steel (FBG3) recovers rapidly due to high structural stiffness and damping (~0.023 s)."
         ),
         "peak_width_seconds": (
-            "Bare FBG produces a narrow impulse response corresponding directly to the impact duration. "
-            "Copper broadens the pulse duration due to mechanical energy absorption and lower shear modulus. "
-            "Steel maintains a relatively crisp pulse width dictated by high stiffness and low compliance."
+            "Bare FBG (FBG2) exhibits a broader impulse duration (FWHM ~1.47 s) due to extended dynamic response. "
+            "Copper (FBG1) produces a narrower pulse duration (~0.66 s). "
+            "Steel (FBG3) maintains a crisp pulse width (~0.68 s) dictated by high stiffness."
         ),
         "max_slope_abs": (
-            "Bare FBG exhibits high max slope due to direct stress wave engagement without structural lag. "
-            "Copper exhibits lower max slope as the ductile metallic matrix attenuates high-frequency impulse transients. "
-            "Steel exhibits sharp slope characteristics owing to high sound velocity and acoustic wave speed."
+            "Bare FBG (FBG2) exhibits the highest maximum slope (0.452 nm/s) due to direct stress wave engagement. "
+            "Copper (FBG1) exhibits lower maximum slope (0.135 nm/s) as metallic matrix absorbs high-frequency impulse transients. "
+            "Steel (FBG3) exhibits lower maximum slope (0.059 nm/s) due to load redistribution."
         ),
         "rms": (
-            "Bare FBG RMS reflects pure dynamic strain excursion across the impact event window. "
-            "Copper RMS is elevated by persistent, damped oscillations and residual strain offset. "
-            "Steel RMS is constrained by structural stiffness limiting peak excursion amplitudes."
+            "Bare FBG (FBG2) RMS (0.0132 nm) reflects pure dynamic strain excursion across the impact event window. "
+            "Copper (FBG1) RMS (0.0028 nm) is constrained by metallic packaging. "
+            "Steel (FBG3) RMS (0.0010 nm) is minimized by structural stiffness."
         ),
         "signal_energy": (
-            "Signal energy ∫x(t)²dt is highest where dynamic strain excursion and transient duration coincide. "
-            "Copper displays high integrated signal energy due to prolonged dynamic ring-down and damping response. "
-            "Steel displays lower signal energy because high stiffness prevents large strain amplitudes."
+            "Signal energy ∫x(t)²dt is highest for Bare FBG (FBG2) (0.00267 nm²·s) where peak strain excursion and extended duration coincide. "
+            "Copper (FBG1) (0.000009 nm²·s) and Steel (FBG3) (0.000001 nm²·s) exhibit lower signal energy due to packaging attenuation."
         ),
         "peak_to_peak": (
-            "Peak-to-peak amplitude captures total dynamic range. Bare and Copper experience larger peak-to-peak excursions "
-            "under mechanical impact than stiffly constrained Steel packaging."
+            "Peak-to-peak amplitude captures total dynamic range: Bare (FBG2, 0.0367 nm) > Copper (FBG1, 0.0116 nm) > Steel (FBG3, 0.0041 nm)."
         ),
         "variance": (
-            "Variance represents the spread of transient strain excursions around baseline. "
-            "Copper exhibits higher variance due to broader pulse width and ring-down tail. "
-            "Steel exhibits lower variance due to mechanical damping and high stiffness constraint."
+            "Variance represents the spread of transient strain excursions: Bare (FBG2) > Copper (FBG1) > Steel (FBG3)."
         ),
         "std_dev": (
-            "Standard deviation scales with transient excursion amplitude. "
-            "Ductile Copper packaging allows greater total strain variance compared to rigid Steel encapsulation."
+            "Standard deviation scales directly with strain excursion amplitude: Bare (FBG2) > Copper (FBG1) > Steel (FBG3)."
         ),
         "entropy": (
-            "Distributional Shannon entropy measures strain signal complexity. "
-            "Copper packaging increases entropy due to complex multi-mode ring-down reflections and interface damping. "
-            "Bare FBG signal exhibits lower entropy corresponding to clean, impulse-like response."
+            "Distributional Shannon entropy measures signal complexity: Bare FBG (FBG2, 3.29 bits) exhibits higher complexity due to dynamic ring-down, "
+            "while Copper (FBG1, 2.47 bits) and Steel (FBG3, 2.63 bits) display lower entropy."
         ),
         "auc_abs": (
-            "Absolute Area Under Curve ∫|x(t)|dt quantifies cumulative total mechanical deformation impulse. "
-            "Copper packaging yields high cumulative AUC due to combined peak magnitude and extended recovery window."
+            "Absolute Area Under Curve ∫|x(t)|dt quantifies cumulative total mechanical deformation impulse: "
+            "Bare (FBG2, 0.1454 nm·s) > Copper (FBG1, 0.0024 nm·s) > Steel (FBG3, 0.0008 nm·s)."
         )
     }
 
@@ -157,8 +137,8 @@ def generate_engineering_comparison_table(all_features_df):
         
         rows.append({
             "Feature": f"{display_name} ({unit})" if unit else display_name,
-            "Bare (FBG1)": f"{b_val:.6f}" if not np.isnan(b_val) else "N/A",
-            "Copper (FBG2)": f"{c_val:.6f}" if not np.isnan(c_val) else "N/A",
+            "Bare (FBG2)": f"{b_val:.6f}" if not np.isnan(b_val) else "N/A",
+            "Copper (FBG1)": f"{c_val:.6f}" if not np.isnan(c_val) else "N/A",
             "Steel (FBG3)": f"{s_val:.6f}" if not np.isnan(s_val) else "N/A",
             "Engineering Explanation": explanations.get(feat_key, "N/A")
         })
@@ -169,11 +149,7 @@ def generate_engineering_comparison_table(all_features_df):
 
 def generate_comparison_plots(all_features_df, output_plots_dir):
     """
-    Generate bar plots with error bars comparing Bare, Copper, and Steel for each feature.
-    
-    Parameters:
-        all_features_df (pd.DataFrame): Dataframe with all feature values.
-        output_plots_dir (str): Directory where plots will be saved.
+    Generate bar plots with error bars comparing Bare (FBG2), Copper (FBG1), and Steel (FBG3) for each feature.
     """
     os.makedirs(output_plots_dir, exist_ok=True)
     
@@ -198,13 +174,12 @@ def generate_comparison_plots(all_features_df, output_plots_dir):
         x_pos = np.arange(len(materials))
         bars = plt.bar(x_pos, means, yerr=stds, capsize=6, color=colors, alpha=0.85, edgecolor="black", width=0.5)
         
-        plt.xticks(x_pos, ["Bare (FBG1)", "Copper (FBG2)", "Steel (FBG3)"], fontsize=11, fontweight="bold")
+        plt.xticks(x_pos, ["Bare (FBG2)", "Copper (FBG1)", "Steel (FBG3)"], fontsize=11, fontweight="bold")
         ylabel_str = f"{display_name} ({unit})" if unit else display_name
         plt.ylabel(ylabel_str, fontsize=12, fontweight="bold")
         plt.title(f"Material Comparison – {display_name}", fontsize=13, fontweight="bold", pad=15)
         plt.grid(axis="y", linestyle="--", alpha=0.5)
         
-        # Value annotations on top of bars
         for bar, mean_val in zip(bars, means):
             height = bar.get_height()
             plt.text(
@@ -241,7 +216,7 @@ def generate_comparison_plots(all_features_df, output_plots_dir):
 
 
 def dataframe_to_markdown(df):
-    """Simple helper to convert a pandas DataFrame to GitHub Flavored Markdown table."""
+    """Helper to convert a pandas DataFrame to GitHub Flavored Markdown table."""
     headers = list(df.columns)
     lines = []
     lines.append("| " + " | ".join(str(h) for h in headers) + " |")
@@ -264,16 +239,16 @@ def generate_markdown_reports(all_features_df, comp_df, results_dir):
     with open(exp_path, "w", encoding="utf-8") as f:
         f.write("# Phase 5 – Material Comparison & Engineering Explanation\n\n")
         f.write("## Overview\n")
-        f.write("This document provides quantitative comparison and physical engineering interpretations for the 13 extracted signal features across Bare (FBG1), Copper (FBG2), and Steel (FBG3) packaging conditions.\n\n")
+        f.write("This document provides quantitative comparison and physical engineering interpretations for the 13 extracted signal features across Bare (FBG2), Copper (FBG1), and Steel (FBG3) packaging conditions.\n\n")
         f.write("## Engineering Comparison Table\n\n")
         f.write(markdown_table)
         f.write("\n\n")
         f.write("## Physical Mechanism Chains\n\n")
         f.write("### 1. Peak Shift & Strain Transfer\n")
         f.write("```text\n")
-        f.write("Bare FBG  --> Direct Fiber-Host Contact --> Unattenuated Strain Transfer --> High Peak Shift\n")
-        f.write("Copper    --> Intermediate Compliant Layer --> Stress Redistribution & Damping --> Moderate/High Shift\n")
-        f.write("Steel     --> High Elastic Modulus Packaging --> Structural Load Sharing --> Reduced Effective Strain Transfer\n")
+        f.write("Bare FBG (FBG2) --> Direct Fiber Contact --> Maximum Strain Transfer --> Largest Peak Shift (Bare > Copper > Steel)\n")
+        f.write("Copper (FBG1)   --> Compliant Metallic Layer --> Strain Redistribution & Absorption --> Moderate Peak Shift\n")
+        f.write("Steel (FBG3)    --> High Elastic Modulus Packaging --> Structural Load Sharing --> Smallest Peak Shift\n")
         f.write("```\n\n")
         f.write("### 2. Recovery Dynamics & Energy Dissipation\n")
         f.write("```text\n")
@@ -298,14 +273,14 @@ def generate_markdown_reports(all_features_df, comp_df, results_dir):
         f.write("- **Baseline Estimation**: Calculated pre-impact median and noise standard deviation over quiet baseline window.\n")
         f.write("- **Event Window**: Boundary refinement based on peak excursion and recovery threshold.\n")
         f.write("- **Feature Extraction**: Calculated 13 engineering signal features including Peak Shift, Residual Shift, Rise Time, Recovery Time, Peak Width (FWHM), Maximum Slope, RMS, Signal Energy, Peak-to-Peak, Variance, Standard Deviation, Entropy, and Area Under Curve (AUC).\n")
-        f.write("- **Material Mapping**: FBG1 -> Bare, FBG2 -> Copper, FBG3 -> Steel.\n\n")
+        f.write("- **Material Mapping**: FBG2 -> Bare, FBG1 -> Copper, FBG3 -> Steel.\n\n")
         f.write("## 3. Results Summary\n\n")
         f.write(markdown_table)
         f.write("\n\n")
         f.write("## 4. Key Findings\n")
-        f.write("1. **Copper Packaging (FBG2)** exhibits the strongest overall impact sensitivity and highest dynamic signal energy, making it the most robust sensor channel for impact detection in this setup.\n")
-        f.write("2. **Bare FBG (FBG1)** shows crisp transient response and low recovery delay due to direct strain coupling without metallic damping.\n")
-        f.write("3. **Steel Packaging (FBG3)** provides mechanical protection and high stiffness, distributing applied loads and producing smaller strain shifts.\n\n")
+        f.write("1. **Bare FBG (FBG2)** exhibits the highest overall impact sensitivity, largest peak shift (0.0298 nm), and highest dynamic signal energy due to direct unattenuated strain transfer.\n")
+        f.write("2. **Copper Packaging (FBG1)** acts as a compliant packaging layer, redistributing strain and absorbing peak impact energy (0.0078 nm peak shift).\n")
+        f.write("3. **Steel Packaging (FBG3)** provides maximum mechanical protection and high stiffness, distributing applied loads and producing smaller strain shifts (0.0028 nm peak shift).\n\n")
         f.write("## 5. Generated Artifacts\n")
         f.write("- `phase5_all_features.csv`\n")
         f.write("- `phase5_feature_summary.csv`\n")

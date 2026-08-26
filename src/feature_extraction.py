@@ -22,8 +22,8 @@ from src.engineering_features import (
 
 # Material mapping for FBG channels
 MATERIAL_MAP = {
-    "FBG1": "Bare",
-    "FBG2": "Copper",
+    "FBG1": "Copper",
+    "FBG2": "Bare",
     "FBG3": "Steel"
 }
 

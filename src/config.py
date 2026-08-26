@@ -12,6 +12,13 @@ FBG_COLUMNS = [
     "FBG3"
 ]
 
+# Material packaging mapping per FBG channel
+MATERIAL_MAP = {
+    "FBG1": "Copper",
+    "FBG2": "Bare",
+    "FBG3": "Steel"
+}
+
 
 # Original columns that are useful
 RAW_COLUMN_INDICES = {
