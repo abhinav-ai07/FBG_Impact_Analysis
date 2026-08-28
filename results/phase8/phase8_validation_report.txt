@@ -1,0 +1,15 @@
+PHASE 8 VALIDATION REPORT
+==================================================
+[CHECK 1] [PASS] Input files present: All Phase 5, Phase 6, Phase 7 CSVs exist
+[CHECK 2] [PASS] Input schemas valid: All expected columns present
+[CHECK 3] [PASS] Material mapping correct: FBG1->Copper, FBG2->Bare, FBG3->Steel
+[CHECK 4] [PASS] NO IMPACT indices clean: NO IMPACT rows have 0 non-null impact indices
+[CHECK 5] [PASS] No infinite values: 0 Inf values in index columns
+[CHECK 6] [PASS] Valid index range [0, 1]: 0 values outside [0, 1]
+[CHECK 7] [PASS] Explicit missing value representation: Missing values represented as NaN
+[CHECK 8] [PASS] Unique event identifiers: 7 datasets x 3 sensors = 21 unique rows
+[CHECK 9] [PASS] Row count consistency: 21 event rows processed
+[CHECK 10] [PASS] Previous phase files untouched: Phase 5/6/7 result files remain intact
+[CHECK 11] [PASS] Outputs contained in results/phase8: All outputs saved inside results/phase8/
+
+PHASE 8 VALIDATION PASSED
