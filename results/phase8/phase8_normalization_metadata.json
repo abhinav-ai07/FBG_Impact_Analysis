@@ -1,70 +1,37 @@
 {
+  "framework": "PGMSIF",
+  "phase": 8,
   "normalization_method": "min_max_global_impact_cases",
   "impact_cases_count": 12,
+  "total_cases_count": 21,
   "feature_ranges": {
     "peak_shift_abs": {
       "min": 0.0018651398601184,
       "max": 0.0374665967365581
     },
-    "max_slope_abs": {
-      "min": 0.0350603170663832,
-      "max": 0.3503193473190871
-    },
     "rise_time_seconds": {
       "min": 0.0,
       "max": 3.010635092285817
-    },
-    "residual_shift_abs": {
-      "min": 0.0004219114219045,
-      "max": 0.0100472727273207
-    },
-    "recovery_time_seconds": {
-      "min": 0.0,
-      "max": 20.279797
     },
     "signal_energy": {
       "min": 6.195146439197367e-07,
       "max": 0.0075796682050947
     },
-    "rms": {
-      "min": 0.0008937991784016,
-      "max": 0.0356806191653703
+    "recovery_time_seconds": {
+      "min": 0.0,
+      "max": 20.279797
     },
-    "peak_to_peak": {
-      "min": 0.0026503263403288,
-      "max": 0.0384655710955561
+    "peak_width_seconds": {
+      "min": 0.1230469159525124,
+      "max": 20.033267665233492
     },
-    "auc_abs": {
-      "min": 0.0002984247086248,
-      "max": 0.3944671797305449
+    "noise_std_nm": {
+      "min": 0.0004611611748603,
+      "max": 0.002121206622363
     },
-    "Spectral_Energy": {
-      "min": 0.0019817149802858,
-      "max": 0.4801325780629644
-    },
-    "Spectral_Centroid": {
-      "min": 4.985470343101232,
-      "max": 6.9318894652402685
-    },
-    "Dominant_Frequency": {
-      "min": 0.4950544651736309,
-      "max": 3.46538118846535
-    },
-    "Bandwidth": {
-      "min": 5.860546231414479,
-      "max": 6.738956543885417
-    },
-    "Wavelet_Energy": {
-      "min": 8.985248816455383e-05,
-      "max": 0.2411719704443401
-    },
-    "Approximation_Energy": {
-      "min": 2.859574817149841e-05,
-      "max": 0.2411428581651515
-    },
-    "Detail_Energy": {
-      "min": 2.9112279188596407e-05,
-      "max": 0.0040195839182048
+    "SNR_linear": {
+      "min": 2.67559904006382,
+      "max": 66.82471177442915
     },
     "Detail_Approx_Ratio": {
       "min": 0.0001207262757437,
