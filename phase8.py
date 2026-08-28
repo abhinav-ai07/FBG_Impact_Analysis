@@ -308,6 +308,72 @@ def compute_seri(row, norm_params):
     return score, valid_count
 
 
+def compute_pei(row, norm_params):
+    """
+    Packaging Efficiency Index (PEI)
+
+    Measures how much sensing capability
+    is retained after packaging.
+
+    Components:
+      - Peak Shift (higher = better)
+      - Recovery Time (lower = better)
+      - Signal Energy (higher = better)
+
+    Formula:
+      0.4 Peak Shift
+      0.3 Recovery
+      0.3 Signal Energy
+    """
+
+    peak_score = normalize_feature(
+        row.get("peak_shift_abs"),
+        "peak_shift_abs",
+        norm_params
+    )
+
+    recovery_raw = normalize_feature(
+        row.get("recovery_time_seconds"),
+        "recovery_time_seconds",
+        norm_params
+    )
+
+    recovery_score = (
+        1.0 - recovery_raw
+        if not pd.isna(recovery_raw)
+        else np.nan
+    )
+
+    energy_score = normalize_feature(
+        row.get("signal_energy"),
+        "signal_energy",
+        norm_params
+    )
+
+    weighted_components = []
+
+    if not pd.isna(peak_score):
+        weighted_components.append(
+            0.4 * peak_score
+        )
+
+    if not pd.isna(recovery_score):
+        weighted_components.append(
+            0.3 * recovery_score
+        )
+
+    if not pd.isna(energy_score):
+        weighted_components.append(
+            0.3 * energy_score
+        )
+
+    score, valid_count = safe_mean(
+        weighted_components
+    )
+
+    return score, valid_count
+
+
 def compute_rsi(p7_stat_df):
     """
     Response Stability Index (RSI)
@@ -406,6 +472,7 @@ def build_event_level_indices(merged_df, norm_params, rsi_dict):
                 "DSTI": np.nan, "DSTI_valid_components": 0, "DSTI_Status": "NOT_APPLICABLE",
                 "IPI": np.nan, "IPI_valid_components": 0, "IPI_Status": "NOT_APPLICABLE",
                 "SERI": np.nan, "SERI_valid_components": 0, "SERI_Status": "NOT_APPLICABLE",
+                "PEI": np.nan, "PEI_valid_components": 0, "PEI_Status": "NOT_APPLICABLE",
                 "Time_Domain_Subscore": np.nan,
                 "Frequency_Domain_Subscore": np.nan,
                 "Wavelet_Domain_Subscore": np.nan,
@@ -417,6 +484,7 @@ def build_event_level_indices(merged_df, norm_params, rsi_dict):
             dsti_score, dsti_vc = compute_dsti(row, norm_params)
             ipi_score, ipi_vc = compute_ipi(row, norm_params)
             seri_score, seri_vc = compute_seri(row, norm_params)
+            pei_score, pei_vc = compute_pei(row, norm_params)
             s_time, s_freq, s_wav, mdisi_score, mdisi_vd = compute_mdisi(row, norm_params)
             rsi_score = rsi_dict.get(material, np.nan)
 
@@ -432,6 +500,10 @@ def build_event_level_indices(merged_df, norm_params, rsi_dict):
                 "SERI": seri_score,
                 "SERI_valid_components": seri_vc,
                 "SERI_Status": "VALID" if not pd.isna(seri_score) else "INSUFFICIENT_DATA",
+
+                "PEI": pei_score,
+                "PEI_valid_components": pei_vc,
+                "PEI_Status": "VALID" if not pd.isna(pei_score) else "INSUFFICIENT_DATA",
 
                 "Time_Domain_Subscore": s_time,
                 "Frequency_Domain_Subscore": s_freq,
@@ -498,6 +570,7 @@ def build_material_level_summary(indices_df):
 
     notes_dict = {
         "DSTI": "Dynamic Strain Transfer Index measures strain sensitivity and response speed.",
+        "PEI": "Packaging Efficiency Index measures sensing capability retained after packaging.",
         "IPI": "Impact Persistence Index captures residual strain retention relative to peak shift.",
         "SERI": "Signal Energy Response Index quantifies overall impact magnitude/energy across signal representations.",
         "RSI": "Response Stability Index captures material repeatability derived from Phase 7 feature CVs.",
@@ -505,7 +578,7 @@ def build_material_level_summary(indices_df):
     }
 
     rows = []
-    indices_list = ["DSTI", "IPI", "SERI", "RSI", "MDISI"]
+    indices_list = ["DSTI", "PEI", "IPI", "SERI", "RSI", "MDISI"]
 
     for idx_name in indices_list:
         for mat in ["Bare", "Copper", "Steel"]:
@@ -552,16 +625,17 @@ def generate_plots(indices_df, material_summary_df, output_dir):
     materials = ["Bare", "Copper", "Steel"]
     colors = {"Bare": "#2196F3", "Copper": "#FF9800", "Steel": "#4CAF50"}
 
-    # Individual Index Plots (DSTI, IPI, SERI, RSI, MDISI)
+    # Individual Index Plots (DSTI, PEI, IPI, SERI, RSI, MDISI)
     index_titles = {
         "DSTI": "Dynamic Strain Transfer Index (DSTI) by Material",
+        "PEI": "Packaging Efficiency Index (PEI) by Material",
         "IPI": "Impact Persistence Index (IPI) by Material",
         "SERI": "Signal Energy Response Index (SERI) by Material",
         "RSI": "Response Stability Index (RSI) by Material",
         "MDISI": "Multi-Domain Impact Signature Index (MDISI) by Material",
     }
 
-    for idx_name in ["DSTI", "IPI", "SERI", "RSI", "MDISI"]:
+    for idx_name in ["DSTI", "PEI", "IPI", "SERI", "RSI", "MDISI"]:
         fig, ax = plt.subplots(figsize=(8, 6))
 
         x_pos = np.arange(len(materials))
@@ -598,9 +672,9 @@ def generate_plots(indices_df, material_summary_df, output_dir):
         plt.close(fig)
         created_plots.append(plot_path)
 
-    # Plot 6: Index Comparison Heatmap across Materials
+    # Plot 7: Index Comparison Heatmap across Materials
     fig, ax = plt.subplots(figsize=(9, 5))
-    indices_list = ["DSTI", "IPI", "SERI", "RSI", "MDISI"]
+    indices_list = ["DSTI", "PEI", "IPI", "SERI", "RSI", "MDISI"]
 
     heatmap_matrix = np.zeros((len(indices_list), len(materials)))
 
@@ -818,12 +892,12 @@ def run_validation(indices_df, material_summary_df, norm_params, p5_df, p6_df, p
 
     # CHECK 4: NO IMPACT rows have no impact-only index computed
     no_impact_df = indices_df[indices_df["Impact_Status"] == "NO IMPACT"]
-    chk4_non_null = no_impact_df[["DSTI", "IPI", "SERI", "MDISI"]].notna().sum().sum()
+    chk4_non_null = no_impact_df[["DSTI", "PEI", "IPI", "SERI", "MDISI"]].notna().sum().sum()
     chk4 = (chk4_non_null == 0)
     all_pass &= log_check(4, "NO IMPACT indices clean", chk4, f"NO IMPACT rows have 0 non-null impact indices")
 
     # CHECK 5: No division-by-zero or Inf values
-    index_cols = ["DSTI", "IPI", "SERI", "RSI", "MDISI"]
+    index_cols = ["DSTI", "PEI", "IPI", "SERI", "RSI", "MDISI"]
     inf_count = 0
     for col in index_cols:
         inf_count += np.isinf(indices_df[col].dropna()).sum()
@@ -928,7 +1002,7 @@ def main():
     print(f"  [OK] Saved normalization metadata: {metadata_path}")
 
     # 4. Compute Indices (Event-level and Material-level)
-    print("\n[4/6] Computing 5 Novel Engineering Indices (DSTI, IPI, SERI, RSI, MDISI)...")
+    print("\n[4/6] Computing 6 Novel Engineering Indices (DSTI, PEI, IPI, SERI, RSI, MDISI)...")
     rsi_dict = compute_rsi(p7_stat_df)
     indices_df = build_event_level_indices(merged_df, norm_params, rsi_dict)
 
