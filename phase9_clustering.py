@@ -423,7 +423,7 @@ def generate_clustering_plots(merged, X_scaled, pca_df, km_models, hc_models, db
         ax.annotate(f"{m}-{exp.split()[-1]}", (x, y), textcoords="offset points", xytext=(0, 6),
                     ha="center", fontsize=7.5, alpha=0.85)
 
-    ax.set_title("Phase 9 — DBSCAN Clustering (eps=4.0, min_samples=2)\nDensity-Based Identification of Core Packaging Regimes vs Outliers", fontsize=12, fontweight="bold")
+    ax.set_title("Phase 9 — DBSCAN Clustering (eps=4.0, min_samples=2) [Exploratory Configuration]\nDensity-Based Identification of Core Packaging Regimes vs Outliers", fontsize=12, fontweight="bold")
     ax.set_xlabel("PC1 (38.17% Variance)", fontsize=10)
     ax.set_ylabel("PC2 (17.64% Variance)", fontsize=10)
     ax.grid(True, linestyle="--", alpha=0.4)
