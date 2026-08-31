@@ -1,0 +1,25 @@
+=================================================================
+PHASE 9 UMAP VALIDATION SUITE
+=================================================================
+  [PASS] Only IMPACT events used (12 valid impacts out of 21 total events)
+  [PASS] Exactly 12 impact events are used
+  [PASS] 9 NO IMPACT events are excluded (9 excluded)
+  [PASS] Material mapping preserved (FBG1->Copper, FBG2->Bare, FBG3->Steel)
+  [PASS] Event IDs align identically with PCA pipeline
+  [PASS] Complete multidomain feature matrix contains exactly 24 features
+  [PASS] Phase 5 engineering features are correct (10 features)
+  [PASS] Phase 6 Spectral FFT features are included (5 features)
+  [PASS] Phase 6 Wavelet features are included (5 features)
+  [PASS] Phase 8 DSTI/PEI/SII/DRI indices are included (4 features)
+  [PASS] No material metadata enters UMAP feature representations
+  [PASS] No NaN or Inf values in any standardized UMAP input
+  [PASS] Standardization completed (zero mean, unit variance verified)
+  [PASS] Fixed random seed used (random_state=42)
+  [PASS] UMAP embeddings generated successfully (12 samples x 2D for all 4 representations)
+  [PASS] Reduced representations are explicitly labelled as secondary comparative analyses
+  [PASS] Primary UMAP retains complete 24-feature set without visual cherry-picking
+  [PASS] Existing PCA files remain intact and unchanged
+  [PASS] Phases 3-8 read-only inputs remain intact and unchanged
+=================================================================
+ALL VALIDATION CHECKS PASSED (19/19).
+=================================================================

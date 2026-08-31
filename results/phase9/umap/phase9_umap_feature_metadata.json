@@ -1,0 +1,111 @@
+{
+    "Representations": {
+        "complete_multidomain": {
+            "name": "Complete Multidomain",
+            "role": "Primary Analysis",
+            "feature_count": 24,
+            "features": [
+                "peak_shift_abs",
+                "rise_time_seconds",
+                "signal_energy",
+                "rms",
+                "peak_to_peak",
+                "std_dev",
+                "entropy",
+                "max_slope_abs",
+                "auc_abs",
+                "noise_std_nm",
+                "Dominant_Frequency",
+                "Spectral_Energy",
+                "Spectral_Entropy",
+                "Spectral_Centroid",
+                "Bandwidth",
+                "Approximation_Energy",
+                "Detail_Energy",
+                "Wavelet_Energy",
+                "Wavelet_Entropy",
+                "Detail_Approx_Ratio",
+                "DSTI",
+                "PEI",
+                "SII",
+                "DRI"
+            ],
+            "scientific_question": "What manifold structure appears when the full transient, spectral (FFT), wavelet, and physics-guided information is integrated?"
+        },
+        "traditional_pgmsif": {
+            "name": "Traditional + PGMSIF",
+            "role": "Secondary Comparative Analysis",
+            "feature_count": 14,
+            "features": [
+                "peak_shift_abs",
+                "rise_time_seconds",
+                "signal_energy",
+                "rms",
+                "peak_to_peak",
+                "std_dev",
+                "entropy",
+                "max_slope_abs",
+                "auc_abs",
+                "noise_std_nm",
+                "DSTI",
+                "PEI",
+                "SII",
+                "DRI"
+            ],
+            "scientific_question": "How does augmenting conventional transient engineering features with physics-guided indices alter non-linear manifold geometry?"
+        },
+        "pgmsif_only": {
+            "name": "PGMSIF Only",
+            "role": "Secondary Comparative Analysis",
+            "feature_count": 4,
+            "features": [
+                "DSTI",
+                "PEI",
+                "SII",
+                "DRI"
+            ],
+            "scientific_question": "What intrinsic geometric structure exists purely within the 4 dimensionless physics-guided engineering indices (DSTI, PEI, SII, DRI)?"
+        },
+        "traditional_only": {
+            "name": "Traditional Only",
+            "role": "Secondary Comparative Analysis",
+            "feature_count": 10,
+            "features": [
+                "peak_shift_abs",
+                "rise_time_seconds",
+                "signal_energy",
+                "rms",
+                "peak_to_peak",
+                "std_dev",
+                "entropy",
+                "max_slope_abs",
+                "auc_abs",
+                "noise_std_nm"
+            ],
+            "scientific_question": "What non-linear structure exists solely within conventional time-domain transient engineering features?"
+        }
+    },
+    "UMAP_Parameters": {
+        "n_neighbors": 5,
+        "min_dist": 0.1,
+        "n_components": 2,
+        "metric": "euclidean",
+        "random_state": 42
+    },
+    "Total_Impact_Events": 12,
+    "Event_Distribution": {
+        "Bare": 7,
+        "Copper": 3,
+        "Steel": 2
+    },
+    "Excluded_Columns": [
+        "Material",
+        "FBG",
+        "Sensor",
+        "Expert",
+        "Dataset",
+        "File",
+        "Impact_Status",
+        "Index_Status"
+    ]
+}
