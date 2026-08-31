@@ -1,0 +1,62 @@
+{
+    "Phase5_Engineering": {
+        "features": [
+            "peak_shift_abs",
+            "rise_time_seconds",
+            "signal_energy",
+            "rms",
+            "peak_to_peak",
+            "std_dev",
+            "entropy",
+            "max_slope_abs",
+            "auc_abs",
+            "noise_std_nm"
+        ],
+        "count": 10,
+        "description": "Transient time-domain deformation, velocity, and statistical strain features."
+    },
+    "Phase6_Spectral_FFT": {
+        "features": [
+            "Dominant_Frequency",
+            "Spectral_Energy",
+            "Spectral_Entropy",
+            "Spectral_Centroid",
+            "Bandwidth"
+        ],
+        "count": 5,
+        "description": "Frequency-domain power distribution, dominant frequency, and spectral centroid."
+    },
+    "Phase6_Wavelet": {
+        "features": [
+            "Approximation_Energy",
+            "Detail_Energy",
+            "Wavelet_Energy",
+            "Wavelet_Entropy",
+            "Detail_Approx_Ratio"
+        ],
+        "count": 5,
+        "description": "Discrete wavelet decomposition energies, transient detail-to-approximation ratio, and wavelet entropy."
+    },
+    "Phase8_Physics_Guided_Indices": {
+        "features": [
+            "DSTI",
+            "PEI",
+            "SII",
+            "DRI"
+        ],
+        "count": 4,
+        "description": "Bounded, deterministic, dimensionless physics-guided engineering indices (DSTI, PEI, SII, DRI)."
+    },
+    "Excluded_Features_Documentation": {
+        "peak_time": "Recording timestamp dependent on operator trigger time, not an intrinsic material/sensor property.",
+        "peak_shift_signed": "Signed version of peak shift; physical magnitude captured unambiguously by peak_shift_abs.",
+        "max_slope_pos_neg": "Directional components; overall dynamic transient rate captured by max_slope_abs.",
+        "variance": "Exact mathematical square of std_dev; excluded to eliminate perfect redundancy.",
+        "residual_shift_abs": "Contains 3/12 missing values (25%) due to unrecovered baseline within window; captured systematically via Phase 8 PEI and SII.",
+        "recovery_time_seconds": "Contains 3/12 missing values (25%) due to unrecovered baseline within window; captured systematically via Phase 8 PEI and DRI.",
+        "peak_width_seconds": "Contains 8/12 missing values (67% missingness); excluded to preserve dataset integrity without synthetic imputation.",
+        "metadata_columns": "Material, Sensor, FBG, Expert, File, Impact_Status, Index_Status excluded completely to ensure unsupervised PCA."
+    },
+    "Total_Feature_Count": 24,
+    "Total_Impact_Events": 12
+}
