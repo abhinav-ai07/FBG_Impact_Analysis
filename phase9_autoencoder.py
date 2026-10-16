@@ -504,7 +504,9 @@ def run_autoencoder_pipeline():
     rec_path = os.path.join(OUTPUT_DIR, "phase9_autoencoder_reconstruction_metrics.csv")
     rec_metrics_df.to_csv(rec_path, index=False)
     mean_r2 = float(rec_metrics_df["Reconstruction_R2"].mean())
-    print(f"  [OK] Mean Feature R^2 across 24 features: {mean_r2:.4f}")
+    print(f"  [OK] IN-SAMPLE Mean Feature R^2 across 24 features: {mean_r2:.4f}")
+    print(f"  [NOTE] This is an IN-SAMPLE reconstruction metric. The dataset contains only 12 events,")
+    print(f"         which is too small to support a reliable independent held-out evaluation.")
     print(f"  [OK] Saved reconstruction metrics: {rec_path}")
 
     # 5. Latent Space Clustering Comparison

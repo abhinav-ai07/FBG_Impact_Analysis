@@ -7,15 +7,26 @@ Identifies and ranks the key engineering parameters and multi-domain features
 that govern the observed FBG sensor response, packaging differentiation,
 and latent space representation.
 
+IMPORTANT SCIENTIFIC NOTES:
+    - Random Forest is used as a SUPERVISED EXPLORATORY model (X = features, Y = material labels).
+      It is NOT an unsupervised method. With N=12, 100% in-sample training accuracy indicates
+      likely memorization/overfitting rather than genuine predictive generalisation.
+    - Feature importance and attribution are EXPLORATORY and DATASET-SPECIFIC.
+      They must not be interpreted as causal or universally generalisable.
+    - The Shapley-style attribution uses a CUSTOM SAMPLING APPROXIMATION
+      (NOT the standard SHAP library). Results are reported as
+      "approximate Shapley-style attribution" to avoid misleading terminology.
+    - All results must be interpreted cautiously given N=12.
+
 Explainability Methodologies:
-    1. Random Forest Gini / Impurity-based Feature Importance (MDI)
-    2. Permutation Feature Importance (50 repeats, chance-corrected)
-    3. Sampled / Kernel Shapley Value Analysis per packaging configuration
+    1. Random Forest Gini / Impurity-based Feature Importance (MDI) — supervised, exploratory
+    2. Permutation Feature Importance (50 repeats) — computed on training set, dataset-specific
+    3. Approximate Shapley-Style Attribution (custom sampling, not the SHAP library)
     4. Autoencoder Latent Space Correlation & Gradient Sensitivity
 
-Core Question Answered:
-    "Which engineering parameters matter most in governing FBG impact response
-     and separating packaging configurations?"
+Core Question Addressed (Exploratory):
+    "Within this 12-event dataset, which engineering parameters receive the greatest
+     attribution in a supervised exploratory model separating packaging configurations?"
 
 Outputs Generated:
     - results/phase9/explainability/phase9_feature_importance_ranked.csv
@@ -166,8 +177,16 @@ def load_and_prepare_data():
 
 def compute_sampled_shapley_values(rf_model, X_scaled, labels_encoded, feature_names, n_samples=100):
     """
-    Computes sample-based Shapley value attribution for multi-class classification
-    across all features and packaging classes (Bare, Copper, Steel) using batched inference.
+    Computes approximate Shapley-style attribution values for multi-class classification.
+
+    NOTE: This is a CUSTOM SAMPLING APPROXIMATION — it is NOT the standard SHAP library
+    (e.g., TreeExplainer). The algorithm samples random permutations and computes marginal
+    contributions of each feature to the model's probability output. Results should be
+    reported as 'approximate Shapley-style attribution' rather than 'SHAP values'.
+
+    Because the model is trained on only 12 events (N=12), the resulting attribution
+    values are exploratory and dataset-specific. They do not constitute causal proof
+    of any feature's universal importance.
     """
     np.random.seed(RANDOM_STATE)
     n_instances, n_features = X_scaled.shape
@@ -210,23 +229,39 @@ def compute_sampled_shapley_values(rf_model, X_scaled, labels_encoded, feature_n
     return shap_values
 
 
+
 # ============================================================
 # 3. EXPLAINABILITY PIPELINE COMPUTATION
 # ============================================================
 
 def run_explainability_pipeline(X_scaled, labels_true, all_features, pca_df, ae_latent_df):
-    """Executes multi-method explainability suite and ranks parameters."""
+    """
+    Executes multi-method exploratory feature attribution suite.
+
+    IMPORTANT: Random Forest is SUPERVISED — labels are used to fit the model.
+    This is an exploratory supervised model, NOT unsupervised learning.
+    With N=12, training accuracy is expected to be 100% (in-sample), which
+    likely reflects memorisation/overfitting rather than genuine generalisation.
+    All feature importance results are exploratory and dataset-specific.
+    """
     le = LabelEncoder()
     labels_encoded = le.fit_transform(labels_true)
     class_names = le.classes_ # ["Bare", "Copper", "Steel"]
 
-    # 1. Random Forest Gini Importance & Permutation Importance
+    # 1. Random Forest Gini Importance & Permutation Importance (SUPERVISED EXPLORATORY)
     rf = RandomForestClassifier(n_estimators=100, random_state=RANDOM_STATE)
     rf.fit(X_scaled, labels_encoded)
 
+    # Compute and report in-sample training accuracy
+    from sklearn.metrics import accuracy_score
+    train_preds = rf.predict(X_scaled)
+    train_accuracy = float(accuracy_score(labels_encoded, train_preds))
+    print(f"  [RF] IN-SAMPLE training accuracy: {train_accuracy*100:.1f}% (N=12; likely reflects memorisation, not generalisation)")
+
+    # Permutation importance computed on the training set — dataset-specific
     perm = permutation_importance(rf, X_scaled, labels_encoded, n_repeats=50, random_state=RANDOM_STATE)
 
-    # 2. Shapley Value Attribution
+    # 2. Approximate Shapley-Style Attribution (custom sampling — NOT the SHAP library)
     shap_matrix = compute_sampled_shapley_values(rf, X_scaled, labels_encoded, all_features, n_samples=100)
     mean_abs_shap = np.mean(np.abs(shap_matrix), axis=0)
 
@@ -262,7 +297,9 @@ def run_explainability_pipeline(X_scaled, labels_true, all_features, pca_df, ae_
             effect_directions.append("Balanced across configurations")
 
     # 5. Composite Ranking Score
-    # Composite score combining Gini Importance (0.35), Permutation Importance (0.35), and Mean Absolute SHAP (0.30)
+    # Composite score combining Gini Importance (0.35), Permutation Importance (0.35),
+    # and Mean Absolute Approximate Shapley-Style Attribution (0.30).
+    # All components are in-sample and exploratory (N=12).
     gini_norm = rf.feature_importances_ / (np.max(rf.feature_importances_) + 1e-12)
     perm_norm = perm.importances_mean / (np.max(perm.importances_mean) + 1e-12) if np.max(perm.importances_mean) > 0 else gini_norm
     shap_norm = mean_abs_shap / (np.max(mean_abs_shap) + 1e-12)
@@ -338,7 +375,7 @@ def generate_explainability_plots(ranked_df, shap_df, corr_df, output_dir):
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=color, edgecolor="black") for color in DOMAIN_COLORS.values()]
     ax.legend(handles, DOMAIN_COLORS.keys(), loc="lower right", fontsize=9.5, title="Feature Domain", title_fontsize=10)
 
-    ax.set_title("Phase 9 — Ranked Engineering Parameters by Composite Importance Score\n(Integrating Random Forest Gini, Permutation Importance, and Shapley Values)", fontsize=12, fontweight="bold")
+    ax.set_title("Phase 9 — Ranked Engineering Parameters by Composite Importance Score\n(Integrating RF Gini, Permutation Importance, and Approx. Shapley-Style Attribution — In-Sample, Exploratory)", fontsize=11, fontweight="bold")
     ax.set_xlabel("Composite Importance Score [0, 1]", fontsize=10.5)
     ax.grid(True, linestyle="--", alpha=0.35, axis="x")
 
@@ -349,7 +386,8 @@ def generate_explainability_plots(ranked_df, shap_df, corr_df, output_dir):
     created_plots.append(p1)
 
     # ---------------------------------------------------------
-    # Plot 2: Shapley Value Attribution by Material Class
+    # Plot 2: Approximate Shapley-Style Attribution by Material Class
+    # (Custom sampling approximation — NOT the standard SHAP library)
     # ---------------------------------------------------------
     fig, ax = plt.subplots(figsize=(13, 6.5))
     top_shap = shap_df.head(12).sort_values(by="Mean_Absolute_Shapley", ascending=True)
@@ -363,8 +401,8 @@ def generate_explainability_plots(ranked_df, shap_df, corr_df, output_dir):
 
     ax.set_yticks(y)
     ax.set_yticklabels(top_shap["Feature"], fontsize=9.5)
-    ax.set_title("Phase 9 — Top 12 Engineering Parameters: Absolute Shapley Attribution by Packaging Configuration", fontsize=12, fontweight="bold")
-    ax.set_xlabel("Mean Absolute Marginal Shapley Impact |phi|", fontsize=10.5)
+    ax.set_title("Phase 9 — Top 12 Parameters: Approximate Shapley-Style Attribution by Packaging Configuration\n(Custom Sampling Approximation, NOT SHAP Library — In-Sample, Exploratory)", fontsize=11, fontweight="bold")
+    ax.set_xlabel("Mean Absolute Approximate Shapley-Style Attribution |φ|", fontsize=10.5)
     ax.grid(True, linestyle="--", alpha=0.35, axis="x")
     ax.legend(loc="lower right", fontsize=10)
 
