@@ -13,3 +13,6 @@ env/
 
 .DS_Store
 Thumbs.db
+
+# Each pipeline run contains copied inputs, logs and generated analysis.
+runs/

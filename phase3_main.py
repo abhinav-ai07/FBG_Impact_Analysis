@@ -320,7 +320,7 @@ def main():
     # =========================
 
     results_directory = Path(
-        "results/tables"
+        "results/phase3"
     )
 
     results_directory.mkdir(

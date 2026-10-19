@@ -755,6 +755,8 @@ def run_phase7():
 
     print(f"\nValidation: {'PASS' if validation_passed else 'FAIL'}")
     print("=" * 70)
+    if not validation_passed:
+        raise RuntimeError("Phase 7 statistical validation failed")
 
 
 if __name__ == "__main__":

@@ -18,11 +18,11 @@ from derivative_detection import detect_derivative
 from changepoint_detection import detect_changepoint
 
 
-INPUT_DIR = r"data\processed\final_phase_input"
+INPUT_DIR = os.path.join("data", "processed", "final_phase_input")
 
-OUTPUT_DIR = r"results\phase6"
+OUTPUT_DIR = os.path.join("results", "phase6")
 
-PHASE4_RESULTS = r"results\phase4\phase4_method_results.csv"
+PHASE4_RESULTS = os.path.join("results", "phase4", "phase4_method_results.csv")
 
 os.makedirs(
     OUTPUT_DIR,
@@ -177,7 +177,7 @@ print("\nPHASE 6 STARTED\n")
 total_impact = 0
 total_no_impact = 0
 
-for filename in os.listdir(INPUT_DIR):
+for filename in sorted(os.listdir(INPUT_DIR)):
 
     if not filename.endswith(".csv"):
         continue
@@ -529,5 +529,6 @@ if validation_passed:
     print("PHASE 6 VALIDATION: ALL CHECKS PASSED")
 else:
     print("PHASE 6 VALIDATION: SOME CHECKS FAILED")
+    sys.exit(1)
 
 print("=" * 60)
